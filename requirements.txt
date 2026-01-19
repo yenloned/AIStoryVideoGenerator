@@ -1,0 +1,22 @@
+# AI Story/Knowledge Video Generator - Dependencies
+
+# 核心依賴
+requests>=2.31.0
+Pillow>=10.0.0
+
+# Stable Diffusion
+torch>=2.0.0
+diffusers>=0.21.0
+transformers>=4.30.0
+accelerate>=0.20.0
+safetensors>=0.3.0
+
+# TTS - Coqui
+TTS>=0.20.0
+
+# 可選：如果使用其他 TTS
+# piper-tts (需要單獨安裝，見 README)
+
+# 其他工具
+numpy>=1.24.0
+
