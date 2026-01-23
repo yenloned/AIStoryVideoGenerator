@@ -5,7 +5,25 @@ requests>=2.31.0
 Pillow>=10.0.0
 
 # Stable Diffusion
-torch>=2.0.0
+# ⚠️ 重要: PyTorch 需要單獨安裝 CUDA 版本以使用 GPU 加速
+# 
+# 快速安裝方法（推薦）:
+#   運行 install_cuda.bat（Windows）或 install_cuda.sh（Linux/Mac）
+#
+# 手動安裝方法:
+#   CUDA 12.1 (推薦，適用於 RTX 30/40 系列):
+#     pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+#   CUDA 11.8 (適用於較舊的 GPU):
+#     pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+#   然後運行: pip install -r requirements.txt
+# 
+# 如果不安裝 CUDA 版本，將使用 CPU（極慢，每張圖片 40+ 分鐘）
+#
+# 圖片生成模型:
+#   - 使用 runwayml/stable-diffusion-v1-5 (標準模型，支援 safetensors)
+#   - 已優化中文提示詞以更好地生成中國傳統場景
+#   - 如需使用中文專用模型，需要 PyTorch 2.6+ (見 FINE_TUNING_GUIDE.md)
+torch>=2.0.0  # 注意：此處僅為版本要求，實際需要安裝 CUDA 版本（見上方說明）
 diffusers>=0.21.0
 transformers>=4.30.0
 accelerate>=0.20.0
@@ -19,4 +37,8 @@ TTS>=0.20.0
 
 # 其他工具
 numpy>=1.24.0
+
+
+
+
 

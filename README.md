@@ -41,15 +41,88 @@ cd AIStoryFarm
 pip install -r requirements.txt
 ```
 
+### 2.5. 安裝 PyTorch with CUDA（重要！用於 GPU 加速）
+
+**⚠️ 重要**: 如果您的系統有 NVIDIA GPU，必須安裝 PyTorch CUDA 版本才能使用 GPU 加速。否則會使用 CPU，速度極慢（每張圖片可能需要 40+ 分鐘）。
+
+#### 檢查當前 PyTorch 版本：
+```bash
+python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
+```
+
+如果顯示 `CUDA available: False`，請安裝 CUDA 版本：
+
+#### Windows (CUDA 12.1):
+```bash
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+```
+
+#### Windows (CUDA 11.8):
+```bash
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+```
+
+#### 驗證安裝：
+```bash
+python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}'); print(f'GPU: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else \"N/A\"}')"
+```
+
+應該顯示 `CUDA available: True` 和您的 GPU 名稱。
+
+**注意**: 
+- 確保您的 NVIDIA 驅動程序已更新到最新版本
+- CUDA 12.1 需要 NVIDIA 驅動 525.60.13 或更高版本
+- CUDA 11.8 需要 NVIDIA 驅動 450.80.02 或更高版本
+
 ### 3. 安裝並配置 Ollama
 
 #### Windows:
 1. 下載 [Ollama Windows 版本](https://ollama.ai/download/windows)
-2. 安裝後，在命令行運行：
+2. 安裝 Ollama（GUI 應用程序）
+3. **確保 Ollama 服務正在運行**（檢查系統托盤是否有 Ollama 圖標）
+4. 下載模型（選擇以下方法之一）：
 
-```bash
-ollama pull qwen2.5:7b
-```
+**方法 A: 使用命令行（推薦）**
+   
+   如果 `ollama` 命令不可用，需要將 Ollama 添加到系統 PATH：
+   
+   a. 找到 Ollama 安裝目錄（通常在 `C:\Users\<用戶名>\AppData\Local\Programs\Ollama`）
+   
+   b. 將 `ollama.exe` 所在目錄添加到系統 PATH：
+      - 按 `Win + R`，輸入 `sysdm.cpl`，按 Enter
+      - 點擊「高級」標籤 → 「環境變數」
+      - 在「系統變數」中找到 `Path`，點擊「編輯」
+      - 點擊「新增」，添加 Ollama 安裝目錄（例如：`C:\Users\<用戶名>\AppData\Local\Programs\Ollama`）
+      - 點擊「確定」保存
+      - **重新開啟命令提示符**（重要！）
+   
+   c. 驗證安裝：
+      ```bash
+      ollama --version
+      ```
+   
+   d. 下載模型：
+      ```bash
+      ollama pull qwen2.5:7b
+      ```
+
+**方法 B: 使用 Ollama GUI**
+   
+   1. 打開 Ollama GUI 應用程序
+   2. 在界面中搜索並下載 `qwen2.5:7b` 模型
+   3. 等待下載完成
+
+**方法 C: 使用完整路徑（CMD 或 PowerShell）**
+   
+   **在 CMD 中**：
+   ```cmd
+   "%LOCALAPPDATA%\Programs\Ollama\ollama.exe" pull qwen2.5:7b
+   ```
+   
+   **在 PowerShell 中**：
+   ```powershell
+   & "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe" pull qwen2.5:7b
+   ```
 
 #### Linux/Mac:
 ```bash
@@ -94,7 +167,9 @@ Coqui TTS 會通過 `pip install TTS` 自動安裝。首次運行時會自動下
 ### 6. 下載 Stable Diffusion 模型（首次運行時自動下載）
 
 首次運行時，程序會自動下載模型：
-- **SD 1.5**: ~4GB（較輕量，推薦）
+- **SD 1.5 (中文專用模型)**: ~4GB（較輕量，推薦，針對中文內容優化）
+  - 使用 `IDEA-CCNL/Taiyi-Stable-Diffusion-1B-Chinese-EN-v0.1`
+  - 對中文提示詞理解更好，生成的中國傳統場景更準確
 - **SDXL**: ~7GB（高質量，需要更多 VRAM）
 
 ## 📖 使用方法
@@ -176,22 +251,53 @@ AIStoryFarm/
 
 ## 🔧 故障排除
 
-### 問題 1: Ollama 連接失敗
+### 問題 1: Ollama 命令未找到（Windows）
+
+**錯誤**: `'ollama' is not recognized as an internal or external command`
+
+**解決方案**:
+1. **確認 Ollama 已安裝並運行**：
+   - 檢查系統托盤是否有 Ollama 圖標
+   - 如果沒有，從開始菜單啟動 Ollama
+
+2. **將 Ollama 添加到 PATH**：
+   - 找到 Ollama 安裝目錄：`C:\Users\<你的用戶名>\AppData\Local\Programs\Ollama`
+   - 將此目錄添加到系統 PATH（見上方安裝步驟）
+   - **重新開啟命令提示符**
+
+3. **使用完整路徑**（臨時解決方案）：
+   
+   **在 CMD 中**：
+   ```cmd
+   "%LOCALAPPDATA%\Programs\Ollama\ollama.exe" pull qwen2.5:7b
+   ```
+   
+   **在 PowerShell 中**：
+   ```powershell
+   & "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe" pull qwen2.5:7b
+   ```
+
+4. **使用 GUI 下載模型**：
+   - 打開 Ollama GUI，在界面中直接下載模型
+
+### 問題 2: Ollama 連接失敗
 
 **錯誤**: `無法連接到 Ollama`
 
 **解決方案**:
-1. 確認 Ollama 正在運行：
+1. 確認 Ollama 正在運行（檢查系統托盤）
+2. 確認模型已下載：
    ```bash
    ollama list
    ```
-2. 確認模型已下載：
-   ```bash
-   ollama pull qwen2.5:7b
+   或使用完整路徑：
+   ```powershell
+   & "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe" list
    ```
 3. 檢查 Ollama 服務是否在 `http://localhost:11434` 運行
+4. 如果 Ollama 未運行，從開始菜單啟動 Ollama
 
-### 問題 2: FFmpeg 未找到
+### 問題 3: FFmpeg 未找到
 
 **錯誤**: `FFmpeg 不可用`
 
@@ -202,7 +308,29 @@ AIStoryFarm/
    ```
 2. 確認 FFmpeg 在系統 PATH 中
 
-### 問題 3: GPU 記憶體不足
+### 問題 4: 使用 CPU 而不是 GPU（圖片生成極慢）
+
+**症狀**: 圖片生成顯示 `設備: cpu`，每張圖片需要 40+ 分鐘
+
+**解決方案**:
+1. **檢查 PyTorch CUDA 支持**：
+   ```bash
+   python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
+   ```
+   
+2. **如果顯示 `False`，安裝 PyTorch CUDA 版本**：
+   ```bash
+   # CUDA 12.1
+   pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+   
+   # 或 CUDA 11.8
+   pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+   ```
+   
+3. **確認 NVIDIA 驅動已安裝並更新**
+4. **重新運行程序**，應該會顯示 `設備: cuda`
+
+### 問題 5: GPU 記憶體不足
 
 **錯誤**: `CUDA out of memory`
 
@@ -212,9 +340,10 @@ AIStoryFarm/
    python main.py "關鍵字" --image-model sd15
    ```
 2. 減少批次大小（修改 `generate_images.py`）
-3. 使用 CPU 模式（較慢）
+3. 關閉其他使用 GPU 的程序
+4. 使用 CPU 模式（較慢，不推薦）
 
-### 問題 4: TTS 生成失敗
+### 問題 6: TTS 生成失敗
 
 **錯誤**: `Coqui TTS 不可用` 或 `Piper TTS 不可用`
 
@@ -225,7 +354,16 @@ AIStoryFarm/
    ```
 2. **Piper TTS**: 確認已安裝並配置模型路徑
 
-### 問題 5: 模型下載緩慢
+### 問題 7: 生成的圖片與主題無關
+
+**症狀**: 生成的圖片不符合中文故事內容
+
+**解決方案**:
+1. 檢查劇本中的 `scene` 描述是否準確
+2. 嘗試不同的風格選項（`--style`）
+3. 如果問題持續，可以手動編輯 `scripts/generate_images.py` 中的提示詞模板
+
+### 問題 8: 模型下載緩慢
 
 **解決方案**:
 1. 使用國內鏡像（如果可用）

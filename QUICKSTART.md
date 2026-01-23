@@ -84,3 +84,7 @@ python main.py "關鍵字" --image-model sd15
 
 **提示**: 如果遇到問題，請查看 README.md 的「故障排除」部分。
 
+
+
+
+
