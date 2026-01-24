@@ -102,3 +102,4 @@ model_id = "IDEA-CCNL/Taiyi-Stable-Diffusion-1B-Chinese-EN-v0.1"
 - [Taiyi 中文模型](https://huggingface.co/IDEA-CCNL/Taiyi-Stable-Diffusion-1B-Chinese-EN-v0.1)
 - [Stable Diffusion Fine-Tuning 教程](https://huggingface.co/docs/diffusers/training/overview)
 
+

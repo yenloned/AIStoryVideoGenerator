@@ -37,6 +37,7 @@ TTS>=0.20.0
 
 # 其他工具
 numpy>=1.24.0
+deep-translator>=1.11.0
 
 
 

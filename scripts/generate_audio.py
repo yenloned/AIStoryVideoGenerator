@@ -56,7 +56,7 @@ class AudioGenerator:
     
     def generate_audio_coqui(self, text: str, output_path: str, speaker_id: str = None) -> str:
         """
-        使用 Coqui TTS 生成語音
+        使用 Coqui TTS 生成語音（使用更好的模型）
         
         Args:
             text: 要合成的文字
@@ -69,28 +69,61 @@ class AudioGenerator:
         try:
             from TTS.api import TTS
             
-            # 初始化 TTS
-            # 使用中文模型
-            model_name = "tts_models/zh-CN/baker/tacotron2-DDC-GST"
+            # 嘗試使用更好的中文 TTS 模型（按質量優先順序）
+            # 1. XTTS v2 (最高質量，多語言，自然語音)
+            # 2. YourTTS (高質量，多說話者)
+            # 3. FastSpeech2 (快速，質量好)
+            # 4. Tacotron2 (備用)
+            models_to_try = [
+                ("tts_models/multilingual/multi-dataset/xtts_v2", "XTTS v2 - 最高質量，自然語音"),
+                ("tts_models/zh-CN/baker/tacotron2-DDC-GST", "Tacotron2 - 標準中文模型"),
+                ("tts_models/zh-CN/baker/fastspeech2", "FastSpeech2 - 快速生成"),
+            ]
             
-            try:
-                tts = TTS(model_name=model_name, gpu=True)
-            except:
-                tts = TTS(model_name=model_name, gpu=False)
+            tts = None
+            used_model = None
+            
+            for model_name, description in models_to_try:
+                try:
+                    print(f"🎤 嘗試載入模型: {description}")
+                    try:
+                        tts = TTS(model_name=model_name, gpu=True)
+                    except:
+                        tts = TTS(model_name=model_name, gpu=False)
+                    used_model = description
+                    print(f"✅ 成功載入: {description}")
+                    break
+                except Exception as e:
+                    print(f"⚠️  {description} 載入失敗: {str(e)[:100]}...")
+                    continue
+            
+            if tts is None:
+                raise RuntimeError("所有 TTS 模型載入失敗")
             
             # 生成語音
-            print(f"🔊 正在生成語音: {text[:30]}...")
-            tts.tts_to_file(
-                text=text,
-                file_path=output_path,
-                speaker=speaker_id
-            )
+            print(f"🔊 正在生成語音 ({used_model}): {text[:30]}...")
+            
+            # XTTS v2 需要指定語言
+            if "xtts" in used_model.lower():
+                tts.tts_to_file(
+                    text=text,
+                    file_path=output_path,
+                    language="zh"  # 指定中文
+                )
+            else:
+                tts.tts_to_file(
+                    text=text,
+                    file_path=output_path,
+                    speaker=speaker_id
+                )
             
             print(f"✅ 語音已保存: {output_path}")
             return output_path
             
         except Exception as e:
             print(f"❌ Coqui TTS 生成失敗: {e}")
+            import traceback
+            traceback.print_exc()
             raise
     
     def generate_audio_piper(self, text: str, output_path: str, model_path: str = None) -> str:
@@ -286,6 +319,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 

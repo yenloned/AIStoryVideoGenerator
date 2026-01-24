@@ -56,42 +56,41 @@ class ScriptGenerator:
         if not self.check_model_available():
             print(f"⚠️  模型 {self.model_name} 未找到，嘗試使用...")
         
-        prompt = f"""你是一名專業的短影片編劇，專門講述中國成語故事、歷史典故和傳統文化故事。
+        prompt = f"""你是專業編劇和視覺設計師，講述中國成語故事。
 
 題材：{keyword}
 
-**重要要求：**
-1. 如果關鍵字是成語（如「塞翁失馬」「守株待兔」等），你必須講述該成語的**真實典故和完整故事**，不要編造不相關的內容。
-2. 如果關鍵字是歷史典故，必須基於真實歷史事件或傳說。
-3. 故事要完整、生動、有教育意義，總字數 150-250 字。
-4. 每段文字要具體描述場景和情節，場景描述要詳細、視覺化。
+要求：
+1. 如果是成語，講述真實典故和完整故事
+2. 故事 150-250 字，分 4-5 段，每段 2-3 句
+3. 場景描述要具體、視覺化
+4. 分析故事的情感基調和視覺風格
 
-請寫一個完整的故事，分 4-6 段，每段 2-3 句。場景描述要具體，包含：
-- 人物動作和表情
-- 環境細節（地點、時間、天氣等）
-- 視覺元素（顏色、物品、建築等）
-
-請以 JSON 格式輸出，格式如下：
+輸出 JSON 格式：
 {{
-  "title": "故事標題（必須與關鍵字相關）",
+  "title": "故事標題",
+  "emotion": "故事整體情感（positive/negative/neutral）",
+  "style": "推薦的圖片風格（anime/chinese_ink/ancient/cinematic/fantasy/hand_drawn）",
+  "reason": "為什麼選擇這個風格和情感（簡短說明）",
   "paragraphs": [
-    {{"text": "第一段文字（2-3句，描述具體情節）", "scene": "詳細的場景描述，包含人物、動作、環境、視覺細節"}},
-    {{"text": "第二段文字（2-3句）", "scene": "詳細的場景描述"}},
-    ...
+    {{"text": "第一段文字", "scene": "場景描述：人物、動作、環境、視覺細節", "emotion": "這段的情感（positive/negative/neutral）"}},
+    {{"text": "第二段文字", "scene": "場景描述", "emotion": "這段的情感"}},
+    {{"text": "第三段文字", "scene": "場景描述", "emotion": "這段的情感"}},
+    {{"text": "第四段文字", "scene": "場景描述", "emotion": "這段的情感"}}
   ]
 }}
 
-**示例（塞翁失馬）：**
-{{
-  "title": "塞翁失馬",
-  "paragraphs": [
-    {{"text": "邊境有一位老翁，他養了一匹好馬。一天，這匹馬突然跑丟了，鄰居們都來安慰他。", "scene": "古代邊境小村莊，一位白髮蒼蒼的老翁站在簡陋的農舍前，周圍是黃土和低矮的籬笆，遠處可見邊境山巒，幾位鄰居圍著老翁，表情關切"}},
-    {{"text": "老翁卻說：『這未必是壞事。』果然，幾個月後，那匹馬帶著一匹駿馬回來了。", "scene": "幾個月後，夕陽西下，老翁的馬帶著一匹更健壯的駿馬回到農舍，老翁站在門口微笑，鄰居們驚訝地看著這一幕，背景是金色的夕陽和遠山"}},
-    ...
-  ]
-}}
+風格選擇指南：
+- chinese_ink: 中國傳統故事、古典文學、水墨畫風格
+- ancient: 古代歷史故事、傳統文化
+- anime: 現代化故事、動畫風格
+- cinematic: 電影感、寫實風格
+- fantasy: 神話、奇幻故事
+- hand_drawn: 手繪插圖風格
 
-只輸出 JSON，不要其他文字。確保故事內容與關鍵字「{keyword}」完全相關。"""
+如果是中國傳統故事（成語、歷史典故），優先使用 chinese_ink 或 ancient 風格。
+
+只輸出 JSON，確保完整閉合所有括號。故事必須與「{keyword}」相關。"""
 
         try:
             print(f"📝 正在生成劇本，關鍵字: {keyword}")
@@ -105,10 +104,10 @@ class ScriptGenerator:
                     "options": {
                         "temperature": 0.7,  # 降低溫度以獲得更準確的故事
                         "top_p": 0.9,
-                        "num_predict": 1000,  # 增加生成長度以獲得完整故事
+                        "num_predict": 2000,  # 增加生成長度以獲得完整故事（從 1000 增加到 2000）
                     }
                 },
-                timeout=120
+                timeout=180  # 增加超時時間
             )
             
             if response.status_code != 200:
@@ -125,27 +124,87 @@ class ScriptGenerator:
             if "paragraphs" not in script_data or not isinstance(script_data["paragraphs"], list):
                 raise ValueError("生成的劇本格式不正確")
             
+            # 顯示 LLM 的分析結果
+            if "emotion" in script_data:
+                print(f"💭 LLM 分析的情感: {script_data['emotion']}")
+            if "style" in script_data:
+                print(f"🎨 LLM 推薦的風格: {script_data['style']}")
+                if "reason" in script_data:
+                    print(f"📝 推薦理由: {script_data['reason']}")
+            
             print(f"✅ 劇本生成成功，共 {len(script_data['paragraphs'])} 段")
             return script_data
             
         except json.JSONDecodeError as e:
             print(f"❌ JSON 解析失敗: {e}")
-            print(f"原始回應: {response_text[:200]}...")
-            raise
+            print(f"原始回應長度: {len(response_text)} 字符")
+            print(f"原始回應前 500 字符: {response_text[:500]}...")
+            if len(response_text) > 500:
+                print(f"原始回應後 200 字符: ...{response_text[-200:]}")
+            
+            # 嘗試再次提取和修復
+            try:
+                print("🔄 嘗試修復 JSON...")
+                json_text = self._extract_json(response_text)
+                script_data = json.loads(json_text)
+                print(f"✅ JSON 修復成功，共 {len(script_data.get('paragraphs', []))} 段")
+                return script_data
+            except Exception as e2:
+                print(f"❌ JSON 修復也失敗: {e2}")
+                raise
         except Exception as e:
             print(f"❌ 生成劇本失敗: {e}")
             raise
     
     def _extract_json(self, text: str) -> str:
-        """從文本中提取 JSON"""
-        # 尋找 JSON 開始和結束
+        """從文本中提取 JSON，嘗試修復不完整的 JSON"""
+        # 尋找 JSON 開始
         start_idx = text.find("{")
-        end_idx = text.rfind("}") + 1
+        if start_idx == -1:
+            raise ValueError("無法在回應中找到 JSON 開始標記")
         
-        if start_idx == -1 or end_idx == 0:
-            raise ValueError("無法在回應中找到 JSON")
+        # 尋找 JSON 結束（從後往前找最後一個 }）
+        end_idx = text.rfind("}")
+        if end_idx == -1 or end_idx <= start_idx:
+            # JSON 可能不完整，嘗試修復
+            print("⚠️  檢測到不完整的 JSON，嘗試修復...")
+            # 計算開括號和閉括號的數量
+            open_braces = text[start_idx:].count("{")
+            close_braces = text[start_idx:].count("}")
+            
+            if close_braces < open_braces:
+                # 缺少閉括號，添加它們
+                missing = open_braces - close_braces
+                text = text + "}" * missing
+                print(f"   添加了 {missing} 個閉括號")
+            
+            end_idx = text.rfind("}")
         
-        return text[start_idx:end_idx]
+        json_text = text[start_idx:end_idx + 1]
+        
+        # 嘗試修復常見的 JSON 問題
+        # 1. 移除尾隨的逗號
+        import re
+        json_text = re.sub(r',\s*}', '}', json_text)
+        json_text = re.sub(r',\s*]', ']', json_text)
+        
+        # 2. 如果最後的段落不完整，嘗試修復
+        if '"scene":' in json_text and json_text.count('"scene":') > json_text.count('"scene": "') + json_text.count('"scene":'):
+            # 可能有未完成的 scene 字段
+            last_scene_idx = json_text.rfind('"scene":')
+            if last_scene_idx != -1:
+                # 檢查是否有閉引號
+                after_scene = json_text[last_scene_idx + 8:]
+                if '"' not in after_scene[:50] or after_scene.strip().startswith('"') and '"' not in after_scene[1:100]:
+                    # scene 字段可能不完整，嘗試補全
+                    # 找到下一個可能的結束位置
+                    next_comma = after_scene.find(',')
+                    next_brace = after_scene.find('}')
+                    if next_comma != -1 and (next_brace == -1 or next_comma < next_brace):
+                        # 在逗號前添加閉引號
+                        json_text = json_text[:last_scene_idx + 8] + ' "' + after_scene[:next_comma] + '",' + after_scene[next_comma + 1:]
+        
+        return json_text
 
 
 def main():

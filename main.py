@@ -119,7 +119,10 @@ class VideoPipeline:
             model_type=self.image_model,
             output_dir=str(self.images_dir)
         )
-        return generator.generate_images_for_script(script_data, style=self.style)
+        # 如果 LLM 推薦了風格，使用 LLM 推薦的風格，否則使用用戶指定的風格
+        llm_recommended_style = script_data.get("style", self.style)
+        print(f"🎨 使用圖片風格: {llm_recommended_style} (LLM 推薦: {script_data.get('reason', 'N/A')})")
+        return generator.generate_images_for_script(script_data, style=llm_recommended_style)
     
     def _generate_audio(self, script_data: dict) -> list:
         """生成語音"""
@@ -152,9 +155,9 @@ def main():
     parser.add_argument(
         "--style",
         type=str,
-        default="cinematic",
-        choices=["cinematic", "chinese_ink", "ancient", "fantasy", "horror", "hand_drawn"],
-        help="圖片風格"
+        default="anime",  # 改為非寫實風格
+        choices=["anime", "chinese_ink", "cinematic", "ancient", "fantasy", "horror", "hand_drawn"],
+        help="圖片風格（默認：anime - 非寫實風格）"
     )
     parser.add_argument(
         "--tts",
@@ -193,6 +196,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 

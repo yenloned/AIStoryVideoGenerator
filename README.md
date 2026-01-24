@@ -150,7 +150,12 @@ brew install ffmpeg
 
 #### 選項 A: Coqui TTS（推薦，自動安裝）
 
-Coqui TTS 會通過 `pip install TTS` 自動安裝。首次運行時會自動下載中文模型。
+Coqui TTS 會通過 `pip install TTS` 自動安裝。系統會自動嘗試使用最佳模型：
+- **XTTS v2** (優先) - 最高質量，自然語音，多語言支持
+- **Tacotron2** (備用) - 標準中文模型
+- **FastSpeech2** (備用) - 快速生成
+
+首次運行時會自動下載模型（XTTS v2 約 1.7GB，Tacotron2 約 500MB）。
 
 #### 選項 B: Piper TTS
 
@@ -167,9 +172,11 @@ Coqui TTS 會通過 `pip install TTS` 自動安裝。首次運行時會自動下
 ### 6. 下載 Stable Diffusion 模型（首次運行時自動下載）
 
 首次運行時，程序會自動下載模型：
-- **SD 1.5 (中文專用模型)**: ~4GB（較輕量，推薦，針對中文內容優化）
-  - 使用 `IDEA-CCNL/Taiyi-Stable-Diffusion-1B-Chinese-EN-v0.1`
-  - 對中文提示詞理解更好，生成的中國傳統場景更準確
+- **SD 1.5 (DreamShaper)**: ~4GB（較輕量，推薦，平衡模型）
+  - 使用 `Lykon/DreamShaper`
+  - 適合多樣化主題：人物、動物、物體、場景
+  - 對故事插圖有良好表現，已優化提示詞和風格限制
+  - 備用模型：Realistic Vision V5.1 或原始 SD 1.5
 - **SDXL**: ~7GB（高質量，需要更多 VRAM）
 
 ## 📖 使用方法
@@ -179,6 +186,32 @@ Coqui TTS 會通過 `pip install TTS` 自動安裝。首次運行時會自動下
 ```bash
 python main.py "成語故事"
 ```
+
+### 測試圖片生成（自定義提示詞）
+
+如果你想測試不同的提示詞來生成圖片：
+
+```bash
+# 使用中文提示詞
+python test_image_generation.py "一位古代中國老翁坐在傳統木屋內，牆上掛著精美的壁畫"
+
+# 使用英文提示詞（推薦，模型理解更好）
+python test_image_generation.py "an old Chinese man sitting in a traditional wooden room with beautiful wall paintings, bronze wine cups on the table, sunset light through window"
+
+# 自定義參數
+python test_image_generation.py "your prompt" --steps 40 --guidance 10 --style ancient
+
+# 查看所有選項
+python test_image_generation.py
+```
+
+**提示詞技巧：**
+- 使用英文提示詞通常效果更好
+- 描述要具體：包含人物、動作、環境、光線等
+- 使用 `--guidance` 調整嚴格度（7-12，默認 9.0）
+- 使用 `--steps` 調整質量（20-50，默認 30）
+
+詳見 `PROMPT_EXPLANATION.md` 了解提示詞系統的工作原理。
 
 ### 進階選項
 
