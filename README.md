@@ -1,463 +1,570 @@
-# AI Story/Knowledge Video Generator（本地版本）
+# AI Story Video Generator
 
-一套完全本地運行的 AI 影片自動化生成系統，不使用 OpenAI 或任何香港受限 API。
+A fully local AI-powered video generation system that automatically creates story and knowledge-based videos from text keywords. The system operates entirely offline without requiring external APIs, making it suitable for environments with restricted internet access.
 
-## 🎯 功能特點
+## Project Overview
 
-- ✅ **完全本地運行** - 不依賴外部 API
-- ✅ **自動生成劇本** - 使用 Ollama + Qwen 2.5 7B
-- ✅ **本地圖片生成** - Stable Diffusion (SD 1.5 / SDXL)
-- ✅ **本地語音合成** - Coqui TTS / Piper TTS
-- ✅ **自動字幕** - 內建字幕生成
-- ✅ **影片合成** - FFmpeg 自動剪輯
-- ✅ **一鍵執行** - Python 腳本自動化整個流程
+This project automates the complete video production pipeline, transforming a simple keyword into a fully-produced video with:
+- AI-generated scripts based on the input topic
+- Scene-by-scene image generation using Stable Diffusion
+- Text-to-speech audio narration
+- Automatic subtitle generation
+- Professional video composition and editing
 
-## 📋 系統需求
+All processing is performed locally using open-source AI models, ensuring privacy and eliminating dependency on cloud services.
 
-### 必需軟件
+## Features
+
+- **Fully Local Operation**: No external API dependencies
+- **Automated Script Generation**: Uses Ollama with Qwen 2.5 7B for intelligent story creation
+- **Local Image Generation**: Stable Diffusion models (SD 1.5 / SDXL) for scene visualization
+- **Text-to-Speech Synthesis**: Coqui TTS or Piper TTS for natural voice narration
+- **Automatic Subtitles**: Built-in subtitle generation synchronized with audio
+- **Video Composition**: FFmpeg-based automated video editing and assembly
+- **One-Command Execution**: Single Python script orchestrates the entire pipeline
+
+## System Requirements
+
+### Required Software
 
 1. **Python 3.8+**
-2. **Ollama** - [下載安裝](https://ollama.ai/)
-3. **FFmpeg** - [下載安裝](https://ffmpeg.org/download.html)
-4. **CUDA** (可選，但強烈建議用於 GPU 加速)
+2. **Ollama** - [Download and Install](https://ollama.ai/)
+3. **FFmpeg** - [Download and Install](https://ffmpeg.org/download.html)
+4. **CUDA** (Optional but highly recommended for GPU acceleration)
 
-### 硬體建議
+### Hardware Recommendations
 
-- **GPU**: NVIDIA GPU with 6GB+ VRAM (推薦 8GB+)
-- **RAM**: 16GB+ (32GB 推薦)
-- **存儲**: 至少 20GB 可用空間（用於模型下載）
+- **GPU**: NVIDIA GPU with 6GB+ VRAM (8GB+ recommended)
+- **RAM**: 16GB+ (32GB recommended)
+- **Storage**: At least 20GB free space (for model downloads)
 
-## 🚀 安裝步驟
+## Installation
 
-### 1. 克隆或下載項目
+### 1. Clone or Download the Project
 
 ```bash
 cd AIStoryFarm
 ```
 
-### 2. 安裝 Python 依賴
+### 2. Install Python Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2.5. 安裝 PyTorch with CUDA（重要！用於 GPU 加速）
+### 3. Install PyTorch with CUDA (Critical for GPU Acceleration)
 
-**⚠️ 重要**: 如果您的系統有 NVIDIA GPU，必須安裝 PyTorch CUDA 版本才能使用 GPU 加速。否則會使用 CPU，速度極慢（每張圖片可能需要 40+ 分鐘）。
+**Important**: If your system has an NVIDIA GPU, you must install the PyTorch CUDA version to enable GPU acceleration. Without CUDA, the system will use CPU mode, which is extremely slow (40+ minutes per image).
 
-#### 檢查當前 PyTorch 版本：
+#### Check Current PyTorch Version:
+
 ```bash
 python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
 ```
 
-如果顯示 `CUDA available: False`，請安裝 CUDA 版本：
+If it displays `CUDA available: False`, install the CUDA version:
 
 #### Windows (CUDA 12.1):
+
 ```bash
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 ```
 
 #### Windows (CUDA 11.8):
+
 ```bash
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 ```
 
-#### 驗證安裝：
+#### Verify Installation:
+
 ```bash
 python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}'); print(f'GPU: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else \"N/A\"}')"
 ```
 
-應該顯示 `CUDA available: True` 和您的 GPU 名稱。
+This should display `CUDA available: True` and your GPU name.
 
-**注意**: 
-- 確保您的 NVIDIA 驅動程序已更新到最新版本
-- CUDA 12.1 需要 NVIDIA 驅動 525.60.13 或更高版本
-- CUDA 11.8 需要 NVIDIA 驅動 450.80.02 或更高版本
+**Notes**:
+- Ensure your NVIDIA drivers are updated to the latest version
+- CUDA 12.1 requires NVIDIA driver 525.60.13 or higher
+- CUDA 11.8 requires NVIDIA driver 450.80.02 or higher
 
-### 3. 安裝並配置 Ollama
+### 4. Install and Configure Ollama
 
 #### Windows:
-1. 下載 [Ollama Windows 版本](https://ollama.ai/download/windows)
-2. 安裝 Ollama（GUI 應用程序）
-3. **確保 Ollama 服務正在運行**（檢查系統托盤是否有 Ollama 圖標）
-4. 下載模型（選擇以下方法之一）：
 
-**方法 A: 使用命令行（推薦）**
-   
-   如果 `ollama` 命令不可用，需要將 Ollama 添加到系統 PATH：
-   
-   a. 找到 Ollama 安裝目錄（通常在 `C:\Users\<用戶名>\AppData\Local\Programs\Ollama`）
-   
-   b. 將 `ollama.exe` 所在目錄添加到系統 PATH：
-      - 按 `Win + R`，輸入 `sysdm.cpl`，按 Enter
-      - 點擊「高級」標籤 → 「環境變數」
-      - 在「系統變數」中找到 `Path`，點擊「編輯」
-      - 點擊「新增」，添加 Ollama 安裝目錄（例如：`C:\Users\<用戶名>\AppData\Local\Programs\Ollama`）
-      - 點擊「確定」保存
-      - **重新開啟命令提示符**（重要！）
-   
-   c. 驗證安裝：
-      ```bash
-      ollama --version
-      ```
-   
-   d. 下載模型：
-      ```bash
-      ollama pull qwen2.5:7b
-      ```
+1. Download [Ollama Windows version](https://ollama.ai/download/windows)
+2. Install Ollama (GUI application)
+3. **Ensure Ollama service is running** (check system tray for Ollama icon)
+4. Download the model using one of the following methods:
 
-**方法 B: 使用 Ollama GUI**
-   
-   1. 打開 Ollama GUI 應用程序
-   2. 在界面中搜索並下載 `qwen2.5:7b` 模型
-   3. 等待下載完成
+**Method A: Using Command Line (Recommended)**
 
-**方法 C: 使用完整路徑（CMD 或 PowerShell）**
-   
-   **在 CMD 中**：
-   ```cmd
-   "%LOCALAPPDATA%\Programs\Ollama\ollama.exe" pull qwen2.5:7b
+If the `ollama` command is not available, add Ollama to your system PATH:
+
+a. Locate Ollama installation directory (typically `C:\Users\<username>\AppData\Local\Programs\Ollama`)
+
+b. Add `ollama.exe` directory to system PATH:
+   - Press `Win + R`, type `sysdm.cpl`, press Enter
+   - Click "Advanced" tab → "Environment Variables"
+   - Find `Path` in "System Variables", click "Edit"
+   - Click "New", add Ollama installation directory (e.g., `C:\Users\<username>\AppData\Local\Programs\Ollama`)
+   - Click "OK" to save
+   - **Restart your command prompt** (important!)
+
+c. Verify installation:
+   ```bash
+   ollama --version
    ```
-   
-   **在 PowerShell 中**：
-   ```powershell
-   & "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe" pull qwen2.5:7b
+
+d. Download model:
+   ```bash
+   ollama pull qwen2.5:7b
    ```
+
+**Method B: Using Ollama GUI**
+
+1. Open Ollama GUI application
+2. Search and download `qwen2.5:7b` model in the interface
+3. Wait for download to complete
+
+**Method C: Using Full Path (CMD or PowerShell)**
+
+**In CMD**:
+```cmd
+"%LOCALAPPDATA%\Programs\Ollama\ollama.exe" pull qwen2.5:7b
+```
+
+**In PowerShell**:
+```powershell
+& "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe" pull qwen2.5:7b
+```
 
 #### Linux/Mac:
+
 ```bash
 curl https://ollama.ai/install.sh | sh
 ollama pull qwen2.5:7b
 ```
 
-### 4. 安裝 FFmpeg
+### 5. Install FFmpeg
 
 #### Windows:
-1. 下載 [FFmpeg Windows 版本](https://www.gyan.dev/ffmpeg/builds/)
-2. 解壓並將 `bin` 目錄添加到系統 PATH
+
+1. Download [FFmpeg Windows version](https://www.gyan.dev/ffmpeg/builds/)
+2. Extract and add `bin` directory to system PATH
 
 #### Linux:
+
 ```bash
 sudo apt-get install ffmpeg
 ```
 
 #### Mac:
+
 ```bash
 brew install ffmpeg
 ```
 
-### 5. 配置 TTS（選擇一種）
+### 6. Configure TTS (Choose One)
 
-#### 選項 A: Coqui TTS（推薦，自動安裝）
+#### Option A: Coqui TTS (Recommended, Auto-Install)
 
-Coqui TTS 會通過 `pip install TTS` 自動安裝。系統會自動嘗試使用最佳模型：
-- **XTTS v2** (優先) - 最高質量，自然語音，多語言支持
-- **Tacotron2** (備用) - 標準中文模型
-- **FastSpeech2** (備用) - 快速生成
+Coqui TTS is automatically installed via `pip install TTS`. The system automatically attempts to use the best available model:
+- **XTTS v2** (Priority) - Highest quality, natural voice, multilingual support
+- **Tacotron2** (Fallback) - Standard Chinese model
+- **FastSpeech2** (Fallback) - Fast generation
 
-首次運行時會自動下載模型（XTTS v2 約 1.7GB，Tacotron2 約 500MB）。
+Models are automatically downloaded on first run (XTTS v2 ~1.7GB, Tacotron2 ~500MB).
 
-#### 選項 B: Piper TTS
+#### Option B: Piper TTS
 
-1. 下載 [Piper TTS](https://github.com/rhasspy/piper/releases)
-2. 下載中文模型：
+1. Download [Piper TTS](https://github.com/rhasspy/piper/releases)
+2. Download Chinese model:
    ```bash
-   # 創建模型目錄
+   # Create model directory
    mkdir -p models/piper/zh_CN
    
-   # 下載中文模型（從 Piper 官方）
-   # 將模型文件放在 models/piper/zh_CN/ 目錄
+   # Download Chinese model (from Piper official)
+   # Place model files in models/piper/zh_CN/ directory
    ```
 
-### 6. 下載 Stable Diffusion 模型（首次運行時自動下載）
+### 7. Stable Diffusion Models (Auto-Download on First Run)
 
-首次運行時，程序會自動下載模型：
-- **SD 1.5 (DreamShaper)**: ~4GB（較輕量，推薦，平衡模型）
-  - 使用 `Lykon/DreamShaper`
-  - 適合多樣化主題：人物、動物、物體、場景
-  - 對故事插圖有良好表現，已優化提示詞和風格限制
-  - 備用模型：Realistic Vision V5.1 或原始 SD 1.5
-- **SDXL**: ~7GB（高質量，需要更多 VRAM）
+On first run, the program automatically downloads models:
+- **SD 1.5 (DreamShaper)**: ~4GB (lightweight, recommended, balanced model)
+  - Uses `Lykon/DreamShaper-8`
+  - Suitable for diverse subjects: people, animals, objects, scenes
+  - Good performance for story illustrations with optimized prompts and style constraints
+  - Fallback models: Realistic Vision V5.1 or original SD 1.5
+- **SDXL**: ~7GB (high quality, requires more VRAM)
 
-## 📖 使用方法
+## Usage
 
-### 基本用法
+### Basic Usage
 
 ```bash
-python main.py "成語故事"
+python main.py "story keyword"
 ```
 
-### 測試圖片生成（自定義提示詞）
+### Test Image Generation (Custom Prompts)
 
-如果你想測試不同的提示詞來生成圖片：
+To test different prompts for image generation:
 
 ```bash
-# 使用中文提示詞
+# Using Chinese prompt
 python test_image_generation.py "一位古代中國老翁坐在傳統木屋內，牆上掛著精美的壁畫"
 
-# 使用英文提示詞（推薦，模型理解更好）
+# Using English prompt (recommended, better model understanding)
 python test_image_generation.py "an old Chinese man sitting in a traditional wooden room with beautiful wall paintings, bronze wine cups on the table, sunset light through window"
 
-# 自定義參數
+# Custom parameters
 python test_image_generation.py "your prompt" --steps 40 --guidance 10 --style ancient
 
-# 查看所有選項
+# View all options
 python test_image_generation.py
 ```
 
-**提示詞技巧：**
-- 使用英文提示詞通常效果更好
-- 描述要具體：包含人物、動作、環境、光線等
-- 使用 `--guidance` 調整嚴格度（7-12，默認 9.0）
-- 使用 `--steps` 調整質量（20-50，默認 30）
+**Prompt Tips**:
+- English prompts typically yield better results
+- Be specific: include characters, actions, environment, lighting
+- Use `--guidance` to adjust strictness (7-12, default 9.0)
+- Use `--steps` to adjust quality (20-50, default 30)
 
-詳見 `PROMPT_EXPLANATION.md` 了解提示詞系統的工作原理。
-
-### 進階選項
+### Advanced Options
 
 ```bash
-# 指定圖片風格
-python main.py "歷史典故" --style chinese_ink
+# Specify image style
+python main.py "historical story" --style chinese_ink
 
-# 指定 TTS 引擎
-python main.py "冷知識" --tts piper
+# Specify TTS engine
+python main.py "knowledge" --tts piper
 
-# 使用 SDXL 模型（需要更多 VRAM）
-python main.py "都市傳說" --image-model sdxl
+# Use SDXL model (requires more VRAM)
+python main.py "urban legend" --image-model sdxl
 
-# 自定義輸出文件名
-python main.py "成語故事" --output my_story
+# Custom output filename
+python main.py "story keyword" --output my_story
 ```
 
-### 批次生成
+### Batch Generation
 
-一次生成多個影片：
+Generate multiple videos at once:
 
 ```bash
-# 使用預定義列表
+# Using predefined list
 python batch_generate.py
 
-# 自定義關鍵字列表
-python batch_generate.py --keywords "成語故事：守株待兔" "歷史典故：三顧茅廬" "冷知識：為什麼天空是藍色的"
+# Custom keyword list
+python batch_generate.py --keywords "idiom story: waiting for rabbit" "history: three visits" "trivia: why is sky blue"
 
-# 指定統一樣式
-python batch_generate.py --keywords "關鍵字1" "關鍵字2" --style cinematic
+# Specify uniform style
+python batch_generate.py --keywords "keyword1" "keyword2" --style cinematic
 ```
 
-### 參數說明
+### Parameter Reference
 
-- `keyword`: 題材關鍵字（必需）
-- `--style`: 圖片風格
-  - `cinematic` (默認) - 電影風格
-  - `chinese_ink` - 中國水墨
-  - `ancient` - 古代場景
-  - `fantasy` - 奇幻風格
-  - `horror` - 恐怖風格
-  - `hand_drawn` - 手繪風格
-- `--tts`: TTS 引擎 (`coqui` 或 `piper`)
-- `--image-model`: 圖片模型 (`sd15` 或 `sdxl`)
-- `--output`: 輸出文件名（不含擴展名）
+- `keyword`: Topic keyword (required)
+- `--style`: Image style
+  - `cinematic` (default) - Cinematic style
+  - `chinese_ink` - Chinese ink painting
+  - `ancient` - Ancient scenes
+  - `fantasy` - Fantasy style
+  - `horror` - Horror style
+  - `hand_drawn` - Hand-drawn style
+- `--tts`: TTS engine (`coqui` or `piper`)
+- `--image-model`: Image model (`sd15` or `sdxl`)
+- `--output`: Output filename (without extension)
 
-## 📁 項目結構
+## Technology Stack
+
+### Core Technologies
+
+- **Python 3.8+**: Primary programming language
+- **PyTorch**: Deep learning framework for image generation
+- **Diffusers**: Hugging Face library for Stable Diffusion models
+- **Transformers**: Model loading and inference
+- **FFmpeg**: Video processing, encoding, and composition
+
+### AI Models and Services
+
+#### Text Generation (Script Creation)
+- **Ollama**: Local LLM server
+- **Qwen 2.5 7B**: Large language model for story generation
+  - Generates structured scripts with paragraphs, scenes, and emotions
+  - Analyzes story context to recommend visual styles
+  - Outputs JSON-formatted script data
+
+#### Image Generation
+- **Stable Diffusion 1.5**: Base diffusion model
+- **DreamShaper-8**: Fine-tuned model optimized for diverse subjects
+- **Realistic Vision V5.1**: Alternative model for realistic scenes
+- **SDXL Turbo**: Fast generation variant (1-4 steps)
+- **Model Features**:
+  - Automatic prompt translation (Chinese to English)
+  - Emotional context analysis
+  - Style-aware generation
+  - Character consistency across scenes
+  - Negative prompt optimization to prevent artifacts
+
+#### Text-to-Speech
+- **Coqui TTS**: Primary TTS engine
+  - XTTS v2: Highest quality, natural voice synthesis
+  - Tacotron2: Standard Chinese model
+  - FastSpeech2: Fast generation option
+- **Piper TTS**: Alternative lightweight TTS engine
+
+#### Video Processing
+- **FFmpeg**: Video composition and editing
+  - Image-to-video conversion with effects
+  - Audio synchronization
+  - Subtitle overlay
+  - Aspect ratio management (letterboxing)
+  - Video concatenation
+
+### AI Usage Details
+
+#### Script Generation Pipeline
+
+1. **Input Processing**: User provides a keyword or topic
+2. **LLM Analysis**: Qwen 2.5 analyzes the topic and generates:
+   - Story title
+   - Multiple paragraphs with narrative flow
+   - Scene descriptions for each paragraph
+   - Emotional context analysis
+   - Recommended visual style with reasoning
+3. **JSON Output**: Structured script data for downstream processing
+
+#### Image Generation Pipeline
+
+1. **Prompt Construction**:
+   - Scene description from script
+   - Style keywords based on LLM recommendation
+   - Emotional vocabulary from context analysis
+   - Story title and text as context
+   - Character consistency prompts
+2. **Translation**: Chinese prompts translated to English for better model understanding
+3. **Model Selection**: Automatic fallback chain for model compatibility
+4. **Generation**: Stable Diffusion inference with optimized parameters
+5. **Quality Control**: Negative prompts prevent artifacts and maintain consistency
+
+#### Audio Generation Pipeline
+
+1. **Text Extraction**: Paragraph text from generated script
+2. **TTS Selection**: Automatic model selection (XTTS v2 → Tacotron2 → FastSpeech2)
+3. **Synthesis**: Voice generation with natural prosody
+4. **Duration Calculation**: Audio length used for video synchronization
+
+#### Video Composition Pipeline
+
+1. **Segment Creation**: Each image paired with corresponding audio
+2. **Effect Application**: Zoom, pan, or static effects
+3. **Synchronization**: Video duration matches audio exactly
+4. **Aspect Ratio Management**: Letterboxing to maintain 9:16 format
+5. **Subtitle Overlay**: SRT-based subtitles with styling
+6. **Concatenation**: All segments combined into final video
+
+## Project Structure
 
 ```
 AIStoryFarm/
-├── main.py                 # 主程序入口
-├── requirements.txt        # Python 依賴
-├── README.md              # 本文件
-├── scripts/                # 各功能模組
-│   ├── generate_script.py  # 劇本生成
-│   ├── generate_images.py  # 圖片生成
-│   ├── generate_audio.py   # 語音生成
-│   └── generate_video.py   # 影片生成
-├── models/                 # 模型文件（自動下載）
-├── output/                 # 輸出目錄
+├── main.py                 # Main program entry point
+├── requirements.txt        # Python dependencies
+├── README.md              # This file
+├── batch_generate.py      # Batch processing script
+├── test_image_generation.py  # Image generation testing tool
+├── scripts/                # Functional modules
+│   ├── generate_script.py  # Script generation (LLM)
+│   ├── generate_images.py  # Image generation (Stable Diffusion)
+│   ├── generate_audio.py   # Audio generation (TTS)
+│   └── generate_video.py   # Video generation (FFmpeg)
+├── models/                 # Model files (auto-downloaded)
+├── output/                 # Output directory
 │   └── {keyword}/
-│       ├── script/         # 生成的劇本
-│       ├── images/         # 生成的圖片
-│       ├── audio/          # 生成的音頻
-│       └── video/          # 最終影片
-├── images/                 # 臨時圖片（可選）
-├── audio/                  # 臨時音頻（可選）
-└── video/                  # 臨時影片（可選）
+│       ├── script/         # Generated scripts
+│       ├── images/         # Generated images
+│       ├── audio/          # Generated audio
+│       └── video/          # Final videos
+├── images/                 # Temporary images (optional)
+├── audio/                  # Temporary audio (optional)
+└── video/                  # Temporary video (optional)
 ```
 
-## 🔧 故障排除
+## Troubleshooting
 
-### 問題 1: Ollama 命令未找到（Windows）
+### Issue 1: Ollama Command Not Found (Windows)
 
-**錯誤**: `'ollama' is not recognized as an internal or external command`
+**Error**: `'ollama' is not recognized as an internal or external command`
 
-**解決方案**:
-1. **確認 Ollama 已安裝並運行**：
-   - 檢查系統托盤是否有 Ollama 圖標
-   - 如果沒有，從開始菜單啟動 Ollama
+**Solution**:
+1. **Confirm Ollama is installed and running**:
+   - Check system tray for Ollama icon
+   - If not present, launch Ollama from Start menu
 
-2. **將 Ollama 添加到 PATH**：
-   - 找到 Ollama 安裝目錄：`C:\Users\<你的用戶名>\AppData\Local\Programs\Ollama`
-   - 將此目錄添加到系統 PATH（見上方安裝步驟）
-   - **重新開啟命令提示符**
+2. **Add Ollama to PATH**:
+   - Locate Ollama installation: `C:\Users\<your-username>\AppData\Local\Programs\Ollama`
+   - Add this directory to system PATH (see installation steps above)
+   - **Restart command prompt**
 
-3. **使用完整路徑**（臨時解決方案）：
+3. **Use full path** (temporary solution):
    
-   **在 CMD 中**：
+   **In CMD**:
    ```cmd
    "%LOCALAPPDATA%\Programs\Ollama\ollama.exe" pull qwen2.5:7b
    ```
    
-   **在 PowerShell 中**：
+   **In PowerShell**:
    ```powershell
    & "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe" pull qwen2.5:7b
    ```
 
-4. **使用 GUI 下載模型**：
-   - 打開 Ollama GUI，在界面中直接下載模型
+4. **Use GUI to download model**:
+   - Open Ollama GUI, download model directly in interface
 
-### 問題 2: Ollama 連接失敗
+### Issue 2: Ollama Connection Failed
 
-**錯誤**: `無法連接到 Ollama`
+**Error**: `Unable to connect to Ollama`
 
-**解決方案**:
-1. 確認 Ollama 正在運行（檢查系統托盤）
-2. 確認模型已下載：
+**Solution**:
+1. Confirm Ollama is running (check system tray)
+2. Confirm model is downloaded:
    ```bash
    ollama list
    ```
-   或使用完整路徑：
+   Or using full path:
    ```powershell
    & "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe" list
    ```
-3. 檢查 Ollama 服務是否在 `http://localhost:11434` 運行
-4. 如果 Ollama 未運行，從開始菜單啟動 Ollama
+3. Check if Ollama service is running at `http://localhost:11434`
+4. If Ollama is not running, launch from Start menu
 
-### 問題 3: FFmpeg 未找到
+### Issue 3: FFmpeg Not Found
 
-**錯誤**: `FFmpeg 不可用`
+**Error**: `FFmpeg not available`
 
-**解決方案**:
-1. 確認 FFmpeg 已安裝：
+**Solution**:
+1. Confirm FFmpeg is installed:
    ```bash
    ffmpeg -version
    ```
-2. 確認 FFmpeg 在系統 PATH 中
+2. Confirm FFmpeg is in system PATH
 
-### 問題 4: 使用 CPU 而不是 GPU（圖片生成極慢）
+### Issue 4: Using CPU Instead of GPU (Extremely Slow Image Generation)
 
-**症狀**: 圖片生成顯示 `設備: cpu`，每張圖片需要 40+ 分鐘
+**Symptom**: Image generation shows `device: cpu`, each image takes 40+ minutes
 
-**解決方案**:
-1. **檢查 PyTorch CUDA 支持**：
+**Solution**:
+1. **Check PyTorch CUDA support**:
    ```bash
    python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
    ```
    
-2. **如果顯示 `False`，安裝 PyTorch CUDA 版本**：
+2. **If it shows `False`, install PyTorch CUDA version**:
    ```bash
    # CUDA 12.1
    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
    
-   # 或 CUDA 11.8
+   # Or CUDA 11.8
    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
    ```
    
-3. **確認 NVIDIA 驅動已安裝並更新**
-4. **重新運行程序**，應該會顯示 `設備: cuda`
+3. **Confirm NVIDIA drivers are installed and updated**
+4. **Re-run program**, should display `device: cuda`
 
-### 問題 5: GPU 記憶體不足
+### Issue 5: GPU Memory Insufficient
 
-**錯誤**: `CUDA out of memory`
+**Error**: `CUDA out of memory`
 
-**解決方案**:
-1. 使用較輕量的模型：
+**Solution**:
+1. Use lighter model:
    ```bash
-   python main.py "關鍵字" --image-model sd15
+   python main.py "keyword" --image-model sd15
    ```
-2. 減少批次大小（修改 `generate_images.py`）
-3. 關閉其他使用 GPU 的程序
-4. 使用 CPU 模式（較慢，不推薦）
+2. Reduce batch size (modify `generate_images.py`)
+3. Close other programs using GPU
+4. Use CPU mode (slower, not recommended)
 
-### 問題 6: TTS 生成失敗
+### Issue 6: TTS Generation Failed
 
-**錯誤**: `Coqui TTS 不可用` 或 `Piper TTS 不可用`
+**Error**: `Coqui TTS not available` or `Piper TTS not available`
 
-**解決方案**:
-1. **Coqui TTS**: 確認已安裝：
+**Solution**:
+1. **Coqui TTS**: Confirm installation:
    ```bash
    pip install TTS
    ```
-2. **Piper TTS**: 確認已安裝並配置模型路徑
+2. **Piper TTS**: Confirm installation and model path configuration
 
-### 問題 7: 生成的圖片與主題無關
+### Issue 7: Generated Images Unrelated to Topic
 
-**症狀**: 生成的圖片不符合中文故事內容
+**Symptom**: Generated images don't match Chinese story content
 
-**解決方案**:
-1. 檢查劇本中的 `scene` 描述是否準確
-2. 嘗試不同的風格選項（`--style`）
-3. 如果問題持續，可以手動編輯 `scripts/generate_images.py` 中的提示詞模板
+**Solution**:
+1. Check if scene descriptions in script are accurate
+2. Try different style options (`--style`)
+3. If problem persists, manually edit prompt templates in `scripts/generate_images.py`
 
-### 問題 8: 模型下載緩慢
+### Issue 8: Slow Model Downloads
 
-**解決方案**:
-1. 使用國內鏡像（如果可用）
-2. 手動下載模型到 `~/.cache/huggingface/` 目錄
-3. 使用 VPN 或代理
+**Solution**:
+1. Use domestic mirrors (if available)
+2. Manually download models to `~/.cache/huggingface/` directory
+3. Use VPN or proxy
 
-## 🎨 自定義配置
+## Customization
 
-### 修改劇本風格
+### Modify Script Style
 
-編輯 `scripts/generate_script.py` 中的 prompt 模板。
+Edit the prompt template in `scripts/generate_script.py`.
 
-### 修改圖片風格
+### Modify Image Style
 
-編輯 `scripts/generate_images.py` 中的 `style_prompts` 字典。
+Edit the `style_prompts` dictionary in `scripts/generate_images.py`.
 
-### 修改影片效果
+### Modify Video Effects
 
-編輯 `scripts/generate_video.py` 中的效果參數。
+Edit effect parameters in `scripts/generate_video.py`.
 
-## 📝 輸出說明
+## Output Specifications
 
-生成的影片將保存在：
+Generated videos are saved at:
 ```
 output/{keyword}/video/{keyword}_with_subtitles.mp4
 ```
 
-影片規格：
-- 解析度: 1080x1920 (Shorts 格式)
-- 幀率: 30 FPS
-- 格式: MP4 (H.264 + AAC)
+Video Specifications:
+- Resolution: 1080x1920 (Shorts format)
+- Frame Rate: 30 FPS
+- Format: MP4 (H.264 + AAC)
 
-## 🔄 工作流程
+## Workflow
 
-1. **輸入關鍵字** → 用戶提供題材
-2. **生成劇本** → Ollama + Qwen 生成故事段落
-3. **生成圖片** → Stable Diffusion 為每段生成背景圖
-4. **生成語音** → TTS 合成語音
-5. **合成影片** → FFmpeg 組合所有元素
-6. **輸出影片** → 最終 MP4 文件
+1. **Input Keyword** → User provides topic
+2. **Generate Script** → Ollama + Qwen generates story paragraphs
+3. **Generate Images** → Stable Diffusion generates background images for each scene
+4. **Generate Audio** → TTS synthesizes voice narration
+5. **Compose Video** → FFmpeg combines all elements
+6. **Output Video** → Final MP4 file
 
-## 💡 使用建議
+## Usage Recommendations
 
-1. **首次運行**: 建議使用 `--image-model sd15`（較輕量）
-2. **GPU 加速**: 確保 CUDA 正確安裝以獲得最佳性能
-3. **批量生成**: 可以編寫腳本循環調用 `main.py` 進行批量生成
-4. **自定義**: 根據需要修改各模組的參數和提示詞
+1. **First Run**: Recommend using `--image-model sd15` (lighter)
+2. **GPU Acceleration**: Ensure CUDA is correctly installed for optimal performance
+3. **Batch Generation**: Can write scripts to loop `main.py` for batch processing
+4. **Customization**: Modify module parameters and prompts as needed
 
-## 📄 許可證
+## License
 
-本項目僅供學習和研究使用。
+This project is for educational and research purposes only.
 
-## 🤝 貢獻
+## Contributing
 
-歡迎提交 Issue 和 Pull Request！
+Issues and Pull Requests are welcome!
 
-## 📧 聯繫
+## Contact
 
-如有問題，請在 GitHub 上提交 Issue。
+For issues, please submit an Issue on GitHub.
 
 ---
 
-**注意**: 本系統完全本地運行，不依賴任何外部 API，適合香港地區使用。
-
+**Note**: This system runs entirely locally and does not depend on any external APIs, making it suitable for environments with restricted internet access.
