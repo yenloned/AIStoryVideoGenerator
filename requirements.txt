@@ -24,13 +24,19 @@ Pillow>=10.0.0
 #   - 已優化中文提示詞以更好地生成中國傳統場景
 #   - 如需使用中文專用模型，需要 PyTorch 2.6+ (見 FINE_TUNING_GUIDE.md)
 torch>=2.0.0  # 注意：此處僅為版本要求，實際需要安裝 CUDA 版本（見上方說明）
-diffusers>=0.21.0
-transformers>=4.30.0
+# 若曾升級過：請執行 pip install "diffusers>=0.21,<=0.30" "transformers>=4.30,<4.37"
+# diffusers 0.31+ 會 import Siglip（需 transformers 4.40+），與 XTTS 的 transformers<4.37 衝突
+diffusers>=0.21.0,<=0.30.0
+# XTTS v2 需要 transformers 4.36.x（4.37+ 會報錯 BeamSearchScorer），情感參考音才可用
+transformers>=4.30.0,<4.37.0
 accelerate>=0.20.0
 safetensors>=0.3.0
 
-# TTS - Coqui
+# TTS - Coqui（情感參考音需 XTTS v2，請保持 transformers<4.37）
 TTS>=0.20.0
+
+# TTS 輸出更乾淨：音量正規化（可選，未安裝則跳過）
+pydub>=0.25.0
 
 # 可選：如果使用其他 TTS
 # piper-tts (需要單獨安裝，見 README)

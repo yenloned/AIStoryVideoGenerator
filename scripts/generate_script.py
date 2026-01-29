@@ -72,13 +72,26 @@ class ScriptGenerator:
   "emotion": "故事整體情感（positive/negative/neutral）",
   "style": "推薦的圖片風格（anime/chinese_ink/ancient/cinematic/fantasy/hand_drawn）",
   "reason": "為什麼選擇這個風格和情感（簡短說明）",
+  "main_character": {{
+    "breed": "human 或動物種類（如 human, dog, fox, dragon），主角物種",
+    "gender": "male 或 female 或 other",
+    "age": "child, young, adult 或 elder",
+    "clothes": "服裝描述（如 ancient Chinese robe, scholar hat）",
+    "nation": "文化/民族（如 Chinese, Japanese）"
+  }},
   "paragraphs": [
-    {{"text": "第一段文字", "scene": "場景描述：人物、動作、環境、視覺細節", "emotion": "這段的情感（positive/negative/neutral）"}},
-    {{"text": "第二段文字", "scene": "場景描述", "emotion": "這段的情感"}},
-    {{"text": "第三段文字", "scene": "場景描述", "emotion": "這段的情感"}},
-    {{"text": "第四段文字", "scene": "場景描述", "emotion": "這段的情感"}}
+    {{"text": "第一段文字", "scene": "場景描述", "emotion": "這段的情感", "action": "此段中人物正在做什麼", "image_prompt": "1boy, young, scholar, black hair, eager expression, traditional robe, hole in wall, light through hole, dim room, books, ink and brush, sitting, reading"}},
+    {{"text": "第二段文字", "scene": "場景描述", "emotion": "這段的情感", "action": "此段中人物正在做什麼", "image_prompt": "依該段文字與 scene 寫出詳細關鍵字，含年齡/職業/姿勢與本段特有視覺"}},
+    {{"text": "第三段文字", "scene": "場景描述", "emotion": "這段的情感", "action": "此段中人物正在做什麼", "image_prompt": "同上"}},
+    {{"text": "第四段文字", "scene": "場景描述", "emotion": "這段的情感", "action": "此段中人物正在做什麼", "image_prompt": "同上"}}
   ]
 }}
+
+image_prompt 規則（每段必填，全部英文；由你根據該段故事與場景決定內容）：
+- 必須「具體反映該段文字與 scene」的視覺細節，不要漏掉關鍵元素。例如：文中若寫「鄰居的燈光透過小洞照進來」→ 要出現 hole in wall, light through hole, dim room, beam of light；若寫「鑿壁」→ wall, hole；若寫「如饑似渴地閱讀」→ reading, focused, books。每段都先讀懂再寫 image_prompt。
+- 必含：角色年齡（依故事判斷）child / young / adult / elder、職業 career、姿勢 pose。例如鑿壁偷光的匡衡可為 young boy 或 child。
+- 只輸出「逗號分隔的關鍵字/標籤」，不寫完整句子。順序建議：情緒/表情 → 角色（1boy/1girl, 年齡, 職業, 髮色, 眼色, 服裝）→ 環境與本段特有細節（光線、洞、牆、書、燭台等）→ 背景 → 手中/身旁物品 → 姿勢。重要可加權如 (light through hole:1.2)。
+- 要詳細、多關鍵字，但不重複同義標籤。由你根據故事理解決定要強調的視覺。
 
 風格選擇指南：
 - chinese_ink: 中國傳統故事、古典文學、水墨畫風格
@@ -205,6 +218,33 @@ class ScriptGenerator:
                         json_text = json_text[:last_scene_idx + 8] + ' "' + after_scene[:next_comma] + '",' + after_scene[next_comma + 1:]
         
         return json_text
+
+
+def script_from_story_text(story_text: str, title: str = None) -> Dict:
+    """
+    將使用者輸入的純文字故事轉成劇本格式（用於 --story / --story-file）。
+    依段落分割（雙換行或單換行），每段作為一個 paragraph，scene 與 text 相同。
+    """
+    text = (story_text or "").strip()
+    if not text:
+        return {"title": title or "My Story", "paragraphs": []}
+    # 先以雙換行分大段，再以單換行分（避免一大塊沒分段）
+    raw_paragraphs = [p.strip() for p in text.replace("\r\n", "\n").split("\n\n") if p.strip()]
+    if not raw_paragraphs:
+        raw_paragraphs = [p.strip() for p in text.split("\n") if p.strip()]
+    paragraphs = []
+    for p in raw_paragraphs:
+        paragraphs.append({
+            "text": p,
+            "scene": p[:300] if len(p) > 300 else p,  # 場景描述可略短
+            "emotion": "neutral",
+        })
+    return {
+        "title": title or raw_paragraphs[0][:50] if raw_paragraphs else "My Story",
+        "emotion": "neutral",
+        "style": "cinematic",
+        "paragraphs": paragraphs,
+    }
 
 
 def main():

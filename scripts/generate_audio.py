@@ -1,12 +1,12 @@
 """
 語音生成模組 - 使用本地 Coqui TTS 或 Piper TTS
-生成語音音頻文件
+支援情感參考音（更自然、有感情）與輸出正規化（更乾淨）
 """
 
 import os
 import sys
 import json
-from typing import Dict, List
+from typing import Dict, List, Optional
 import subprocess
 
 
@@ -15,7 +15,9 @@ class AudioGenerator:
         self,
         tts_engine: str = "coqui",  # "coqui" or "piper"
         output_dir: str = "audio",
-        language: str = "zh"
+        language: str = "zh",
+        reference_wav: Optional[str] = None,
+        clean_output: bool = True,
     ):
         """
         初始化語音生成器
@@ -24,15 +26,23 @@ class AudioGenerator:
             tts_engine: TTS 引擎類型
             output_dir: 輸出目錄
             language: 語言代碼
+            reference_wav: 可選，6–10 秒情感參考音檔路徑（XTTS 用於更自然、有感情的語調）。參考音可以是任一種語言，XTTS 只取音色與語調，合成語言由 language 決定。
+            clean_output: 是否對輸出做正規化與輕量壓縮，使音量一致、更乾淨
         """
         self.tts_engine = tts_engine
         self.output_dir = output_dir
         self.language = language
+        self.reference_wav = reference_wav
+        self.clean_output = clean_output
         
         # 確保輸出目錄存在
         os.makedirs(output_dir, exist_ok=True)
         
         print(f"🔊 語音生成器初始化，引擎: {tts_engine}")
+        if reference_wav and os.path.exists(reference_wav):
+            print(f"   情感參考音: {reference_wav}")
+        if clean_output:
+            print("   輸出: 正規化音量、輕量壓縮（更乾淨）")
     
     def check_coqui_available(self) -> bool:
         """檢查 Coqui TTS 是否可用"""
@@ -54,14 +64,33 @@ class AudioGenerator:
         except (FileNotFoundError, subprocess.TimeoutExpired):
             return False
     
-    def generate_audio_coqui(self, text: str, output_path: str, speaker_id: str = None) -> str:
+    def _normalize_and_clean_audio(self, wav_path: str) -> None:
+        """音量正規化 + 目標響度（更乾淨、一致）"""
+        if not self.clean_output or not os.path.exists(wav_path):
+            return
+        try:
+            from pydub import AudioSegment, effects
+            seg = AudioSegment.from_wav(wav_path)
+            seg = effects.normalize(seg)
+            target_dBFS = -20.0
+            diff = target_dBFS - seg.dBFS
+            if abs(diff) > 0.5:
+                seg = seg.apply_gain(diff)
+            seg.export(wav_path, format="wav")
+        except ImportError:
+            pass
+        except Exception as e:
+            print(f"⚠️ 音頻正規化跳過: {e}")
+    
+    def generate_audio_coqui(self, text: str, output_path: str, speaker_id: str = None, emotion: str = None) -> str:
         """
-        使用 Coqui TTS 生成語音（使用更好的模型）
+        使用 Coqui TTS 生成語音（優先 XTTS v2，支援情感參考音）
         
         Args:
             text: 要合成的文字
             output_path: 輸出路徑
-            speaker_id: 說話者 ID
+            speaker_id: 說話者 ID（非 XTTS 時使用）
+            emotion: 段落情感（可作為參考，目前用於參考音風格）
             
         Returns:
             生成的音頻文件路徑
@@ -69,54 +98,59 @@ class AudioGenerator:
         try:
             from TTS.api import TTS
             
-            # 嘗試使用更好的中文 TTS 模型（按質量優先順序）
-            # 1. XTTS v2 (最高質量，多語言，自然語音)
-            # 2. YourTTS (高質量，多說話者)
-            # 3. FastSpeech2 (快速，質量好)
-            # 4. Tacotron2 (備用)
+            # 優先 XTTS v2：更自然、可接情感參考音（speaker_wav）
             models_to_try = [
-                ("tts_models/multilingual/multi-dataset/xtts_v2", "XTTS v2 - 最高質量，自然語音"),
-                ("tts_models/zh-CN/baker/tacotron2-DDC-GST", "Tacotron2 - 標準中文模型"),
+                ("tts_models/multilingual/multi-dataset/xtts_v2", "XTTS v2 - 自然、可情感參考"),
+                ("tts_models/zh-CN/baker/tacotron2-DDC-GST", "Tacotron2 - 標準中文"),
                 ("tts_models/zh-CN/baker/fastspeech2", "FastSpeech2 - 快速生成"),
             ]
             
             tts = None
             used_model = None
             
+            ref_wav = self.reference_wav if (self.reference_wav and os.path.exists(self.reference_wav)) else None
+            
             for model_name, description in models_to_try:
                 try:
                     print(f"🎤 嘗試載入模型: {description}")
                     try:
                         tts = TTS(model_name=model_name, gpu=True)
-                    except:
+                    except Exception:
                         tts = TTS(model_name=model_name, gpu=False)
+                    try:
+                        import torch
+                        tts = tts.to("cuda" if torch.cuda.is_available() else "cpu")
+                    except Exception:
+                        pass
                     used_model = description
                     print(f"✅ 成功載入: {description}")
                     break
                 except Exception as e:
-                    print(f"⚠️  {description} 載入失敗: {str(e)[:100]}...")
+                    err = str(e)
+                    print(f"⚠️  {description} 載入失敗: {err[:120]}...")
+                    if "BeamSearchScorer" in err or "transformers" in err.lower():
+                        print("   💡 情感參考音需 XTTS v2。若要用參考音，請執行: pip install \"transformers>=4.30,<4.37\"")
                     continue
             
             if tts is None:
+                if ref_wav:
+                    print("   💡 情感參考音僅 XTTS v2 支援；目前使用備用模型，音色不會複製參考音。")
                 raise RuntimeError("所有 TTS 模型載入失敗")
             
-            # 生成語音
             print(f"🔊 正在生成語音 ({used_model}): {text[:30]}...")
             
-            # XTTS v2 需要指定語言
-            if "xtts" in used_model.lower():
-                tts.tts_to_file(
-                    text=text,
-                    file_path=output_path,
-                    language="zh"  # 指定中文
-                )
-            else:
-                tts.tts_to_file(
-                    text=text,
-                    file_path=output_path,
-                    speaker=speaker_id
-                )
+            is_xtts = "xtts" in (used_model or "").lower()
             
+            if is_xtts:
+                # XTTS v2：合成語言由 self.language 決定；參考音可為任一種語言，只取音色與語調
+                kwargs = {"text": text, "file_path": output_path, "language": self.language}
+                if ref_wav:
+                    kwargs["speaker_wav"] = ref_wav
+                tts.tts_to_file(**kwargs)
+            else:
+                tts.tts_to_file(text=text, file_path=output_path, speaker=speaker_id)
+            
+            self._normalize_and_clean_audio(output_path)
             print(f"✅ 語音已保存: {output_path}")
             return output_path
             
@@ -166,6 +200,7 @@ class AudioGenerator:
                     timeout=30
                 )
                 
+                self._normalize_and_clean_audio(output_path)
                 print(f"✅ 語音已保存: {output_path}")
                 return output_path
                 
@@ -181,13 +216,14 @@ class AudioGenerator:
             print(f"❌ Piper TTS 錯誤: {e}")
             raise
     
-    def generate_audio(self, text: str, output_path: str = None) -> str:
+    def generate_audio(self, text: str, output_path: str = None, emotion: Optional[str] = None) -> str:
         """
         生成語音（自動選擇可用引擎）
         
         Args:
             text: 要合成的文字
             output_path: 輸出路徑
+            emotion: 可選，段落情感（供 XTTS 等未來擴展）
             
         Returns:
             生成的音頻文件路徑
@@ -197,14 +233,13 @@ class AudioGenerator:
             timestamp = int(time.time())
             output_path = os.path.join(self.output_dir, f"audio_{timestamp}.wav")
         
-        # 根據引擎類型生成
         if self.tts_engine == "coqui":
             if not self.check_coqui_available():
                 print("⚠️  Coqui TTS 不可用，嘗試使用 Piper...")
                 self.tts_engine = "piper"
             
             if self.tts_engine == "coqui":
-                return self.generate_audio_coqui(text, output_path)
+                return self.generate_audio_coqui(text, output_path, emotion=emotion)
         
         if self.tts_engine == "piper":
             if not self.check_piper_available():
@@ -231,10 +266,11 @@ class AudioGenerator:
         
         for i, paragraph in enumerate(paragraphs):
             text = paragraph.get("text", "")
+            emotion = paragraph.get("emotion")
             output_path = os.path.join(self.output_dir, f"audio_{i+1:02d}.wav")
             
             try:
-                audio_path = self.generate_audio(text, output_path)
+                audio_path = self.generate_audio(text, output_path, emotion=emotion)
                 audio_paths.append(audio_path)
             except Exception as e:
                 print(f"⚠️  段落 {i+1} 語音生成失敗: {e}")

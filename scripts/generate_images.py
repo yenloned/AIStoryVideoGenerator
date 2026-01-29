@@ -21,7 +21,10 @@ class ImageGenerator:
         self,
         model_type: str = "sdxl",  # "sdxl" or "sd15"
         device: str = None,
-        output_dir: str = "images"
+        output_dir: str = "images",
+        lora_path: str = None,
+        lora_scale: float = 0.8,
+        checkpoint_path: str = None
     ):
         """
         初始化圖片生成器
@@ -30,6 +33,9 @@ class ImageGenerator:
             model_type: 模型類型 "sdxl" 或 "sd15"
             device: 設備 ("cuda", "cpu", "mps")
             output_dir: 輸出目錄
+            lora_path: 可選 LoRA 權重路徑（.safetensors 或目錄），也可用環境變數 LORA_PATH
+            lora_scale: LoRA 強度 0~1，預設 0.8；也可用環境變數 LORA_SCALE
+            checkpoint_path: 可選本地完整模型路徑（CivitAI 等 .safetensors/.ckpt），也可用環境變數 CHECKPOINT_PATH
         """
         self.model_type = model_type
         self.output_dir = output_dir
@@ -37,6 +43,9 @@ class ImageGenerator:
         self.translator = GoogleTranslator(source='auto', target='en')
         self.base_character_prompt = ""  # 用於保持角色一致性
         self.is_turbo = False  # 標記是否為 Turbo 模型
+        self.lora_path = lora_path or os.environ.get("LORA_PATH", "").strip() or None
+        self.lora_scale = float(os.environ.get("LORA_SCALE", str(lora_scale)))
+        self.checkpoint_path = checkpoint_path or os.environ.get("CHECKPOINT_PATH", "").strip() or None
         
         # 設備檢測和診斷
         if device:
@@ -63,7 +72,22 @@ class ImageGenerator:
         try:
             print(f"📦 正在載入 {self.model_type} 模型...")
             
-            if self.model_type == "sdxl":
+            # 優先：本地完整模型（CivitAI 等下載的 .safetensors / .ckpt）
+            if self.checkpoint_path and os.path.exists(self.checkpoint_path):
+                print(f"📂 從本地檔案載入: {self.checkpoint_path}")
+                dtype = torch.float16 if self.device == "cuda" else torch.float32
+                if self.model_type == "sdxl":
+                    self.pipeline = StableDiffusionXLPipeline.from_single_file(
+                        self.checkpoint_path,
+                        torch_dtype=dtype
+                    )
+                else:
+                    self.pipeline = StableDiffusionPipeline.from_single_file(
+                        self.checkpoint_path,
+                        torch_dtype=dtype
+                    )
+                print(f"✅ 已載入本地模型（{self.model_type}）")
+            elif self.model_type == "sdxl":
                 # SDXL 模型（需要更多 VRAM）
                 model_id = "stabilityai/stable-diffusion-xl-base-1.0"
                 self.pipeline = StableDiffusionXLPipeline.from_pretrained(
@@ -159,6 +183,29 @@ class ImageGenerator:
                 print("💾 已啟用輕量優化（GPU 模式，速度優先）")
             else:
                 self.pipeline = self.pipeline.to(self.device)
+            
+            # 可選：載入 LoRA 權重（見 FINE_TUNING_GUIDE.md）
+            if self.lora_path and os.path.exists(self.lora_path):
+                try:
+                    if os.path.isfile(self.lora_path):
+                        lora_dir = os.path.dirname(self.lora_path)
+                        weight_name = os.path.basename(self.lora_path)
+                        self.pipeline.load_lora_weights(
+                            lora_dir,
+                            weight_name=weight_name,
+                            adapter_name="story_style"
+                        )
+                    else:
+                        self.pipeline.load_lora_weights(
+                            self.lora_path,
+                            adapter_name="story_style"
+                        )
+                    self.pipeline.set_adapters(["story_style"], adapter_weights=[self.lora_scale])
+                    print(f"✅ LoRA 已載入: {self.lora_path} (scale={self.lora_scale})")
+                except Exception as lora_err:
+                    print(f"⚠️  LoRA 載入失敗（將不使用 LoRA）: {lora_err}")
+            elif self.lora_path:
+                print(f"⚠️  LoRA 路徑不存在，跳過: {self.lora_path}")
             
             print("✅ 模型載入完成")
             
@@ -272,6 +319,33 @@ class ImageGenerator:
         unsafe_words = ["nsfw", "nude", "sex", "naked", "porn", "explicit", "gore", "blood", "violence"]
         return not any(word in prompt.lower() for word in unsafe_words)
 
+    def _build_character_prompt(self, character: Dict) -> str:
+        """
+        從角色資訊組出精準的英文提示片段：物種、性別、年齡、服裝、民族。
+        """
+        if not character or not isinstance(character, dict):
+            return ""
+        parts = []
+        breed = (character.get("breed") or "").strip()
+        if breed:
+            parts.append(breed)
+        gender = (character.get("gender") or "").strip().lower()
+        if gender in ("male", "female"):
+            parts.append(gender)
+        age = (character.get("age") or "").strip().lower()
+        if age in ("child", "young", "adult", "elder"):
+            parts.append(age)
+        clothes = (character.get("clothes") or "").strip()
+        if clothes:
+            parts.append(clothes)
+        nation = (character.get("nation") or "").strip()
+        if nation:
+            parts.append(f"{nation} style")
+        if not parts:
+            return ""
+        raw = ", ".join(parts)
+        return self.translate_to_english(raw) if any("\u4e00" <= c <= "\u9fff" for c in raw) else raw
+
     def generate_image(
         self,
         scene_description: str,
@@ -281,24 +355,32 @@ class ImageGenerator:
         height: int = 1152,  # 保持 9:16 比例
         story_title: str = None,
         story_text: str = None,
-        paragraph_emotion: str = None  # LLM 分析的情感
+        paragraph_emotion: str = None,  # LLM 分析的情感
+        character: Dict = None,  # main_character: breed, gender, age, clothes, nation
+        action: str = None,  # 此段中人物正在做什麼
+        image_prompt: str = None  # LLM 輸出的關鍵字串（逗號分隔，tag 風格），優先使用
     ) -> str:
         """
         生成單張圖片
         
         Args:
-            scene_description: 場景描述
+            scene_description: 場景描述（環境、視覺細節）
             style: 風格選項
             output_path: 輸出路徑
-            width: 圖片寬度 (默認 1080x1920 Mobile)
-            height: 圖片高度
-            story_title: 故事標題
-            story_text: 故事文本
+            image_prompt: 若提供則作為主體 positive prompt（關鍵字串，逗號分隔），取代從 scene/character 組成的句子
         """
         if self.pipeline is None:
             self.load_model()
             
-        # 翻譯場景描述
+        # LLM 提供的關鍵字串（tag 風格）優先作為主 prompt
+        keyword_prompt = (image_prompt or "").strip()
+        if keyword_prompt and any(c in keyword_prompt for c in "abcdefghijklmnopqrstuvwxyz"):
+            # 若有中文則翻譯成英文
+            if any("\u4e00" <= c <= "\u9fff" for c in keyword_prompt):
+                keyword_prompt = self.translate_to_english(keyword_prompt)
+            keyword_prompt = ", ".join(t.strip() for t in keyword_prompt.split(",") if t.strip())
+            
+        # 翻譯場景描述（無 keyword_prompt 時或作為 fallback 用）
         english_description = self.translate_to_english(scene_description)
         
         # 分析場景的情感色彩
@@ -328,66 +410,53 @@ class ImageGenerator:
         if style in ["chinese_ink", "ancient"]:
             print(f"🇨🇳 使用中國傳統風格: {style}")
         
-        # 角色一致性處理（簡化以減少 token 數量）
-        # 如果是故事的第一張圖，提取角色特徵作為基礎
-        if not self.base_character_prompt and story_title:
-            # 簡單提取：假設故事主角是"main character"
-            # 這裡可以改進為從文本分析主角特徵
-            self.base_character_prompt = "consistent character"
+        # 風格與品質尾綴（兩種路徑共用）
+        style_suffix = f"{chosen_style}, detailed, stylized, clear composition, vertical format, simple background, dynamic, highly detailed, sharp focus, high resolution"
+        
+        if keyword_prompt:
+            # 使用 LLM 輸出的關鍵字串作為主體 prompt（tag 風格，多關鍵字）
+            prompt_parts = ["masterpiece, best quality", keyword_prompt, style_suffix]
+            prompt = ", ".join(prompt_parts)
+            print(f"📝 使用 LLM 關鍵字 prompt（{len(keyword_prompt.split(','))} tags）")
+        else:
+            # Fallback：從角色、情感、動作、場景組句
+            character_subject = self._build_character_prompt(character) if character else ""
+            if character_subject and not self.base_character_prompt and story_title:
+                self.base_character_prompt = character_subject
+            if not self.base_character_prompt and story_title:
+                self.base_character_prompt = "consistent character"
             
-        # 構建簡化的 Prompt Template（保持在 77 tokens 以內）
-        # 移除冗餘描述，只保留核心元素
-        # 格式: "{scene_description}, {style}, vertical, simple background"
-        
-        # 簡化風格提示詞以節省 tokens
-        style_short = {
-            "anime": "anime style",
-            "chinese_ink": "Chinese ink painting",
-            "cinematic": "cinematic lighting",
-            "illustration": "professional illustration"
-        }
-        style_short_text = style_short.get(style, "cinematic lighting")
-        
-        # 構建詳細提示詞（參考 Z Image Turbo 風格）
-        # 格式：masterpiece, best quality, [場景描述], (character:weight), [風格], [構圖], [細節]
-        # 參考示例：使用詳細描述、權重標記、多層次細節
-        
-        # 構建提示詞（參考示例的詳細風格）
-        prompt_parts = [
-            "masterpiece, best quality",  # 質量標籤（參考示例）
-            english_description,  # 主要場景描述（詳細描述）
-        ]
-        
-        # 添加角色一致性（使用權重格式，參考示例的 (lone warrior:1.4)）
-        if self.base_character_prompt:
-            prompt_parts.append(f"({self.base_character_prompt}:1.2)")
-        
-        # 添加風格和細節（參考示例的詳細描述）
-        prompt_parts.append(f"{chosen_style}, detailed, stylized, clear composition")
-        
-        # 添加情感色彩（如果檢測到）
-        if emotional_context:
-            prompt_parts.append(emotional_context)
-        
-        # 添加構圖和格式要求（參考示例的構圖描述）
-        # 添加更多細節關鍵詞以提高圖片質量
-        prompt_parts.append("vertical format, simple background, avoid clutter, dynamic, highly detailed, intricate details, sharp focus, fine details, high resolution")
-        
-        # 組合提示詞
-        prompt = ", ".join(prompt_parts)
-        
-        # 確保提示詞不會太長（限制在 70 tokens 以內）
-        words = prompt.split()
-        if len(words) > 55:  # 大約 55 tokens（留出安全邊際到 77）
-            # 保留最重要的部分
-            essential_parts = [
-                "masterpiece, best quality",
-                english_description[:80] if len(english_description) > 80 else english_description,
-            ]
-            if self.base_character_prompt:
-                essential_parts.append(f"({self.base_character_prompt}:1.2)")
-            essential_parts.append(f"{chosen_style}, vertical format")
-            prompt = ", ".join(essential_parts)
+            action_english = ""
+            if action and str(action).strip():
+                action_english = self.translate_to_english(str(action).strip())
+            
+            prompt_parts = ["masterpiece, best quality"]
+            if character_subject:
+                prompt_parts.append(f"({character_subject}:1.2)")
+            elif self.base_character_prompt:
+                prompt_parts.append(f"({self.base_character_prompt}:1.2)")
+            if emotional_context:
+                prompt_parts.append(emotional_context)
+            if action_english:
+                prompt_parts.append(action_english)
+            prompt_parts.append(english_description)
+            prompt_parts.append(style_suffix)
+            prompt = ", ".join(prompt_parts)
+            
+            words = prompt.split()
+            if len(words) > 75:
+                essential_parts = ["masterpiece, best quality"]
+                if character_subject:
+                    essential_parts.append(f"({character_subject}:1.2)")
+                elif self.base_character_prompt:
+                    essential_parts.append(f"({self.base_character_prompt}:1.2)")
+                if emotional_context:
+                    essential_parts.append(emotional_context)
+                if action_english:
+                    essential_parts.append(action_english)
+                essential_parts.append(english_description[:100] if len(english_description) > 100 else english_description)
+                essential_parts.append(f"{chosen_style}, vertical format")
+                prompt = ", ".join(essential_parts)
         
         print(f"📝 提示詞長度: {len(prompt.split())} 詞（約 {len(prompt.split()) * 1.3:.0f} tokens）")
         
@@ -400,7 +469,8 @@ class ImageGenerator:
             return None
 
         try:
-            print(f"🎨 正在生成圖片: {english_description[:50]}...")
+            preview = (keyword_prompt[:60] + "...") if keyword_prompt else (english_description[:50] + "...")
+            print(f"🎨 正在生成圖片: {preview}")
             
             # 清除 CUDA 快取
             if self.device == "cuda":
@@ -481,9 +551,11 @@ class ImageGenerator:
             if "out of memory" in str(e).lower() and width > 512:
                 print("⚠️  VRAM 不足，嘗試降低解析度重試...")
                 return self.generate_image(
-                    scene_description, style, output_path, 
-                    width=512, height=896,  # 降低解析度但保持比例
-                    story_title=story_title, story_text=story_text
+                    scene_description, style, output_path,
+                    width=512, height=896,
+                    story_title=story_title, story_text=story_text,
+                    paragraph_emotion=paragraph_emotion, character=character, action=action,
+                    image_prompt=image_prompt,
                 )
             raise
     
@@ -508,29 +580,34 @@ class ImageGenerator:
         # 重置角色特徵
         self.base_character_prompt = ""
         
-        # 獲取整體情感（如果 LLM 提供了）
+        # 獲取整體情感與主角資訊（若 LLM 有提供）
         overall_emotion = script_data.get("emotion", None)
+        main_character = script_data.get("main_character", None)
+        # 若腳本未提供 main_character，仍可只用 scene / emotion / action
+        style_override = script_data.get("style", style)
         
         for i, paragraph in enumerate(paragraphs):
             scene = paragraph.get("scene", paragraph.get("text", ""))
             text = paragraph.get("text", "")
-            # 獲取段落級別的情感（如果 LLM 提供了）
             paragraph_emotion = paragraph.get("emotion", overall_emotion)
+            action = paragraph.get("action", "").strip() or None
+            image_prompt = paragraph.get("image_prompt", "").strip() or None  # LLM 輸出的關鍵字串（tag 風格）
             output_path = os.path.join(self.output_dir, f"scene_{i+1:02d}.png")
             
             try:
-                # 在每次生成前清除快取
                 if self.device == "cuda" and torch.cuda.is_available():
                     torch.cuda.empty_cache()
                 
-                # 傳遞故事標題、文本和情感以提供上下文
                 img_path = self.generate_image(
                     scene_description=scene,
-                    style=style,
+                    style=style_override or style,
                     output_path=output_path,
                     story_title=story_title,
                     story_text=text,
-                    paragraph_emotion=paragraph_emotion  # 傳遞 LLM 分析的情感
+                    paragraph_emotion=paragraph_emotion,
+                    character=main_character,
+                    action=action,
+                    image_prompt=image_prompt,
                 )
                 image_paths.append(img_path)
                 

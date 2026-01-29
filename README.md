@@ -207,6 +207,20 @@ On first run, the program automatically downloads models:
 python main.py "story keyword"
 ```
 
+### Interactive Mode
+
+Run without arguments to access an interactive menu:
+
+```bash
+python main.py
+```
+
+The interactive mode allows you to:
+- Select from predefined story topics
+- Input custom story text or load from file
+- Choose image generation model
+- Configure output settings
+
 ### Test Image Generation (Custom Prompts)
 
 To test different prompts for image generation:
@@ -275,6 +289,9 @@ python batch_generate.py --keywords "keyword1" "keyword2" --style cinematic
 - `--tts`: TTS engine (`coqui` or `piper`)
 - `--image-model`: Image model (`sd15` or `sdxl`)
 - `--output`: Output filename (without extension)
+- `--lora`: Path to a LoRA weights file or folder (optional; see **FINE_TUNING_GUIDE.md**)
+- `--lora-scale`: LoRA strength 0–1 (default 0.8)
+- `--checkpoint`: Path to a local full model file, e.g. from CivitAI (see **CIVITAI_IMPORT.md**)
 
 ## Technology Stack
 
@@ -289,14 +306,15 @@ python batch_generate.py --keywords "keyword1" "keyword2" --style cinematic
 ### AI Models and Services
 
 #### Text Generation (Script Creation)
-- **Ollama**: Local LLM server
+- **Ollama**: Local LLM server providing REST API interface
 - **Qwen 2.5 7B**: Large language model for story generation
   - Generates structured scripts with paragraphs, scenes, and emotions
   - Analyzes story context to recommend visual styles
   - Outputs JSON-formatted script data
+  - Model size: ~4.4GB, runs locally via Ollama
 
 #### Image Generation
-- **Stable Diffusion 1.5**: Base diffusion model
+- **Stable Diffusion 1.5**: Base diffusion model architecture
 - **DreamShaper-8**: Fine-tuned model optimized for diverse subjects
 - **Realistic Vision V5.1**: Alternative model for realistic scenes
 - **SDXL Turbo**: Fast generation variant (1-4 steps)
@@ -306,10 +324,11 @@ python batch_generate.py --keywords "keyword1" "keyword2" --style cinematic
   - Style-aware generation
   - Character consistency across scenes
   - Negative prompt optimization to prevent artifacts
+  - LoRA support for custom style fine-tuning
 
 #### Text-to-Speech
 - **Coqui TTS**: Primary TTS engine
-  - XTTS v2: Highest quality, natural voice synthesis
+  - XTTS v2: Highest quality, natural voice synthesis with emotional reference audio support
   - Tacotron2: Standard Chinese model
   - FastSpeech2: Fast generation option
 - **Piper TTS**: Alternative lightweight TTS engine
@@ -321,6 +340,42 @@ python batch_generate.py --keywords "keyword1" "keyword2" --style cinematic
   - Subtitle overlay
   - Aspect ratio management (letterboxing)
   - Video concatenation
+
+### Architecture Overview
+
+The system follows a modular pipeline architecture:
+
+1. **Script Generation Module** (`scripts/generate_script.py`)
+   - Interfaces with Ollama API
+   - Constructs prompts for LLM
+   - Parses and validates JSON responses
+   - Handles error recovery and JSON repair
+
+2. **Image Generation Module** (`scripts/generate_images.py`)
+   - Loads Stable Diffusion models via Hugging Face Diffusers
+   - Translates prompts using Google Translator API
+   - Manages GPU/CPU device selection
+   - Implements prompt engineering with style constraints
+   - Supports LoRA and custom checkpoint loading
+
+3. **Audio Generation Module** (`scripts/generate_audio.py`)
+   - Manages multiple TTS backends (Coqui, Piper)
+   - Handles model fallback chain
+   - Supports emotional reference audio for XTTS v2
+   - Implements audio normalization and cleanup
+
+4. **Video Generation Module** (`scripts/generate_video.py`)
+   - Orchestrates FFmpeg operations
+   - Synchronizes audio and video segments
+   - Generates subtitle files (SRT format)
+   - Applies video effects (zoom, pan, static)
+   - Manages aspect ratio and letterboxing
+
+5. **Main Pipeline** (`main.py`)
+   - Coordinates all modules
+   - Manages file I/O and directory structure
+   - Provides interactive and command-line interfaces
+   - Handles error propagation and user feedback
 
 ### AI Usage Details
 
@@ -334,6 +389,7 @@ python batch_generate.py --keywords "keyword1" "keyword2" --style cinematic
    - Emotional context analysis
    - Recommended visual style with reasoning
 3. **JSON Output**: Structured script data for downstream processing
+4. **Validation**: JSON structure validation and error recovery
 
 #### Image Generation Pipeline
 
@@ -346,6 +402,9 @@ python batch_generate.py --keywords "keyword1" "keyword2" --style cinematic
 2. **Translation**: Chinese prompts translated to English for better model understanding
 3. **Model Selection**: Automatic fallback chain for model compatibility
 4. **Generation**: Stable Diffusion inference with optimized parameters
+   - Guidance scale: 7-12 (default 9.0)
+   - Inference steps: 20-50 (default 30)
+   - Negative prompts prevent artifacts
 5. **Quality Control**: Negative prompts prevent artifacts and maintain consistency
 
 #### Audio Generation Pipeline
@@ -353,6 +412,8 @@ python batch_generate.py --keywords "keyword1" "keyword2" --style cinematic
 1. **Text Extraction**: Paragraph text from generated script
 2. **TTS Selection**: Automatic model selection (XTTS v2 → Tacotron2 → FastSpeech2)
 3. **Synthesis**: Voice generation with natural prosody
+   - Optional emotional reference audio for XTTS v2
+   - Audio normalization for consistent volume
 4. **Duration Calculation**: Audio length used for video synchronization
 
 #### Video Composition Pipeline
@@ -379,6 +440,9 @@ AIStoryFarm/
 │   ├── generate_audio.py   # Audio generation (TTS)
 │   └── generate_video.py   # Video generation (FFmpeg)
 ├── models/                 # Model files (auto-downloaded)
+├── data/                   # Data files
+│   ├── topics.json        # Predefined story topics
+│   └── tts_reference.wav  # Optional emotional reference audio
 ├── output/                 # Output directory
 │   └── {keyword}/
 │       ├── script/         # Generated scripts
@@ -515,15 +579,19 @@ AIStoryFarm/
 
 ### Modify Script Style
 
-Edit the prompt template in `scripts/generate_script.py`.
+Edit the prompt template in `scripts/generate_script.py`. The prompt engineering determines the structure and quality of generated stories.
 
 ### Modify Image Style
 
-Edit the `style_prompts` dictionary in `scripts/generate_images.py`.
+Edit the `style_prompts` dictionary in `scripts/generate_images.py`. Each style has associated keywords that influence the visual output.
+
+### LoRA Fine-Tuning (Custom Visual Style)
+
+To train a LoRA for a specific visual style (e.g. Chinese ink, anime) and use it in story generation, see **[FINE_TUNING_GUIDE.md](FINE_TUNING_GUIDE.md)**. After training, pass the LoRA path with `--lora path/to/lora.safetensors` or set the `LORA_PATH` environment variable.
 
 ### Modify Video Effects
 
-Edit effect parameters in `scripts/generate_video.py`.
+Edit effect parameters in `scripts/generate_video.py`. Effects include zoom, pan, and static positioning for each video segment.
 
 ## Output Specifications
 
@@ -536,6 +604,7 @@ Video Specifications:
 - Resolution: 1080x1920 (Shorts format)
 - Frame Rate: 30 FPS
 - Format: MP4 (H.264 + AAC)
+- Aspect Ratio: 9:16 (vertical video)
 
 ## Workflow
 
@@ -552,6 +621,30 @@ Video Specifications:
 2. **GPU Acceleration**: Ensure CUDA is correctly installed for optimal performance
 3. **Batch Generation**: Can write scripts to loop `main.py` for batch processing
 4. **Customization**: Modify module parameters and prompts as needed
+
+## Technical Implementation Notes
+
+### Model Loading Strategy
+
+The system implements a fallback chain for model loading:
+- Primary: DreamShaper-8 (if available locally)
+- Secondary: Realistic Vision V5.1
+- Tertiary: Original Stable Diffusion 1.5
+
+This ensures compatibility across different hardware configurations.
+
+### Memory Management
+
+- CUDA memory allocation uses expandable segments to reduce fragmentation
+- Models are loaded once and reused across multiple image generations
+- Automatic device selection (CUDA > CPU) with fallback
+
+### Error Handling
+
+- JSON parsing includes repair mechanisms for incomplete LLM responses
+- Model loading includes fallback chains
+- TTS includes automatic model selection based on availability
+- All modules include comprehensive error messages for debugging
 
 ## License
 
