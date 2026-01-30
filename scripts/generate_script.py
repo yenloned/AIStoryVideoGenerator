@@ -62,14 +62,15 @@ class ScriptGenerator:
 
 要求：
 1. 如果是成語，講述真實典故和完整故事
-2. 故事必須分為 5-8 段（paragraphs），每段 3-5 句（可以更長，根據需要）。每段文字長度根據段落總數調整，確保總語音時長在 20-60 秒之間（中文 TTS 約 2.5-4 字/秒）：
-   - 5段：每段約 30-48 字，總計約 150-240 字（總時長約 37-60 秒）
-   - 6段：每段約 25-40 字，總計約 150-240 字（總時長約 37-60 秒）
-   - 7段：每段約 21-34 字，總計約 147-238 字（總時長約 37-60 秒）
-   - 8段：每段約 18-30 字，總計約 144-240 字（總時長約 36-60 秒）
-   - 【重要】所有段落加起來的總語音時長必須在 20-60 秒之間。如果段落較少（5-6段），每段可以更長（4-6句，40-50字）；如果段落較多（7-8段），每段可以稍短（3-4句，20-30字），以確保總時長符合要求。
-3. 場景描述要具體、視覺化
-4. 分析故事的情感基調和視覺風格
+2. 故事必須分為 5-8 段（paragraphs），每段必須包含 5-8 句（必須更長，詳細描述場景和情節）。每段文字長度根據段落總數調整，確保總語音時長在 20-60 秒之間（中文 TTS 約 2.5-4 字/秒）：
+   - 5段：每段約 50-80 字（5-8句），總計約 250-400 字（總時長約 40-60 秒）
+   - 6段：每段約 45-70 字（5-8句），總計約 270-420 字（總時長約 40-60 秒）
+   - 7段：每段約 40-60 字（5-7句），總計約 280-420 字（總時長約 40-60 秒）
+   - 8段：每段約 35-55 字（5-7句），總計約 280-440 字（總時長約 40-60 秒）
+   - 【重要】每段必須詳細描述場景、動作、情感和細節，不能只是簡單的一兩句話。每段至少 5 句，包含豐富的場景描述和情節發展。所有段落加起來的總語音時長必須在 20-60 秒之間（建議控制在 40-60 秒之間以獲得更好的效果）。
+3. 場景描述要具體、視覺化，必須詳細描述環境、光線、氛圍、人物動作和情感變化
+4. 每段文字（text）必須包含 5-8 句，詳細展開場景和情節，不能只是簡單的一兩句話。要描述人物的動作、表情、環境細節、光線變化、氛圍等
+5. 分析故事的情感基調和視覺風格
 
 輸出 JSON 格式：
 {{
@@ -85,17 +86,25 @@ class ScriptGenerator:
     "nation": "文化/民族（如 Chinese, Japanese）"
   }},
   "paragraphs": [
-    {{"text": "第一段文字", "scene": "場景描述", "emotion": "這段的情感", "action": "此段中人物正在做什麼", "image_prompt": "1boy, young, scholar, black hair, short hair, eager expression, focused eyes, traditional Chinese robe, blue robe, long sleeves, sitting pose, cross-legged, hole in wall, cracked wall, stone wall texture, light through hole, beam of light, warm light, flickering candlelight, dim room, dark room, shadows, high contrast, books, ancient books, scroll, ink brush, ink stone, paper, reading pose, leaning forward, hand holding book, concentrated expression, scholarly atmosphere, quiet study, candle flame, wooden desk, traditional furniture, rough wall surface, dust particles, light rays, illumination, darkness, contrast ratio, close-up composition, eye level perspective, warm color palette, orange light, yellow candlelight, detailed textures, intricate patterns, high quality, sharp focus"}},
-    {{"text": "第二段文字（例如：軍隊場景）", "scene": "場景描述", "emotion": "這段的情感", "action": "此段中人物正在做什麼", "image_prompt": "army, soldiers, troops, multiple people, crowd, group of soldiers, military formation, army ranks, many people, diverse crowd, various ages, different clothing, armor, weapons, helmets, military uniforms, organized ranks, unified movement, collective action, battlefield, wide shot, medium shot, group composition, crowd density, spatial arrangement, formation type, group dynamics, individual details, mixed expressions, varied poses, different body types, various occupations, determined expressions, resolute stance, military discipline, organized structure, high quality, detailed textures"}},
-    {{"text": "第三段文字", "scene": "場景描述", "emotion": "這段的情感", "action": "此段中人物正在做什麼", "image_prompt": "必須包含至少 40-60 個詳細關鍵字，涵蓋角色（單人或多人/群體）、服裝、動作、環境、光線、色彩、構圖、背景、道具、氛圍、細節等所有視覺層面"}},
-    {{"text": "第四段文字", "scene": "場景描述", "emotion": "這段的情感", "action": "此段中人物正在做什麼", "image_prompt": "必須包含至少 40-60 個詳細關鍵字，涵蓋角色（單人或多人/群體）、服裝、動作、環境、光線、色彩、構圖、背景、道具、氛圍、細節等所有視覺層面"}},
-    {{"text": "第五段文字", "scene": "場景描述", "emotion": "這段的情感", "action": "此段中人物正在做什麼", "image_prompt": "必須包含至少 40-60 個詳細關鍵字，涵蓋角色（單人或多人/群體）、服裝、動作、環境、光線、色彩、構圖、背景、道具、氛圍、細節等所有視覺層面"}},
-    {{"text": "第六段文字（可選，根據故事需要）", "scene": "場景描述", "emotion": "這段的情感", "action": "此段中人物正在做什麼", "image_prompt": "必須包含至少 40-60 個詳細關鍵字，涵蓋角色（單人或多人/群體）、服裝、動作、環境、光線、色彩、構圖、背景、道具、氛圍、細節等所有視覺層面"}},
-    {{"text": "第七段文字（可選，根據故事需要）", "scene": "場景描述", "emotion": "這段的情感", "action": "此段中人物正在做什麼", "image_prompt": "必須包含至少 40-60 個詳細關鍵字，涵蓋角色（單人或多人/群體）、服裝、動作、環境、光線、色彩、構圖、背景、道具、氛圍、細節等所有視覺層面"}},
-    {{"text": "第八段文字（可選，根據故事需要）", "scene": "場景描述", "emotion": "這段的情感", "action": "此段中人物正在做什麼", "image_prompt": "必須包含至少 40-60 個詳細關鍵字，涵蓋角色（單人或多人/群體）、服裝、動作、環境、光線、色彩、構圖、背景、道具、氛圍、細節等所有視覺層面"}}
+    {{"text": "第一段文字（必須包含 5-8 句，詳細描述場景、動作、情感和細節，不能只是簡單的一兩句話。例如：'在一個昏暗的房間裡，年輕的學者坐在破舊的木桌前。他專注地閱讀著手中的古書，眼神中充滿了渴望和專注。牆壁上有一個小洞，鄰居的燈光透過小洞照進來，在昏暗的房間中形成一道溫暖的光束。學者不時抬頭看向那道光，彷彿從中獲得了希望和力量。他手中的書頁已經泛黃，但他依然如饑似渴地閱讀著每一行文字。房間裡瀰漫著墨香和書卷的氣息，蠟燭在微風中搖曳，投下跳動的陰影。'）", "scene": "場景描述（必須詳細，包含環境、光線、氛圍等）", "emotion": "這段的情感", "action": "此段中人物正在做什麼（必須詳細描述動作和姿態）", "image_prompt": "1boy, young, scholar, black hair, short hair, eager expression, focused eyes, traditional Chinese robe, blue robe, long sleeves, sitting pose, cross-legged, hole in wall, cracked wall, stone wall texture, light through hole, beam of light, warm light, flickering candlelight, dim room, dark room, shadows, high contrast, books, ancient books, scroll, ink brush, ink stone, paper, reading pose, leaning forward, hand holding book, concentrated expression, scholarly atmosphere, quiet study, candle flame, wooden desk, traditional furniture, rough wall surface, dust particles, light rays, illumination, darkness, contrast ratio, close-up composition, eye level perspective, warm color palette, orange light, yellow candlelight, detailed textures, intricate patterns, high quality, sharp focus"}},
+    {{"text": "第二段文字（例如：軍隊場景，必須包含 5-8 句，詳細描述軍隊的陣型、士兵的動作、戰場的氛圍等）", "scene": "場景描述（必須詳細，包含環境、光線、氛圍等）", "emotion": "這段的情感", "action": "此段中人物正在做什麼（必須詳細描述動作和姿態）", "image_prompt": "army, soldiers, troops, multiple people, crowd, group of soldiers, military formation, army ranks, many people, diverse crowd, various ages, different clothing, armor, weapons, helmets, military uniforms, organized ranks, unified movement, collective action, battlefield, wide shot, medium shot, group composition, crowd density, spatial arrangement, formation type, group dynamics, individual details, mixed expressions, varied poses, different body types, various occupations, determined expressions, resolute stance, military discipline, organized structure, high quality, detailed textures"}},
+    {{"text": "第三段文字（必須包含 5-8 句，詳細描述場景、動作、情感和細節）", "scene": "場景描述（必須詳細，包含環境、光線、氛圍等）", "emotion": "這段的情感", "action": "此段中人物正在做什麼（必須詳細描述動作和姿態）", "image_prompt": "必須包含至少 40-60 個詳細關鍵字，涵蓋角色（單人或多人/群體）、服裝、動作、環境、光線、色彩、構圖、背景、道具、氛圍、細節等所有視覺層面"}},
+    {{"text": "第四段文字（必須包含 5-8 句，詳細描述場景、動作、情感和細節）", "scene": "場景描述（必須詳細，包含環境、光線、氛圍等）", "emotion": "這段的情感", "action": "此段中人物正在做什麼（必須詳細描述動作和姿態）", "image_prompt": "必須包含至少 40-60 個詳細關鍵字，涵蓋角色（單人或多人/群體）、服裝、動作、環境、光線、色彩、構圖、背景、道具、氛圍、細節等所有視覺層面"}},
+    {{"text": "第五段文字（必須包含 5-8 句，詳細描述場景、動作、情感和細節）", "scene": "場景描述（必須詳細，包含環境、光線、氛圍等）", "emotion": "這段的情感", "action": "此段中人物正在做什麼（必須詳細描述動作和姿態）", "image_prompt": "必須包含至少 40-60 個詳細關鍵字，涵蓋角色（單人或多人/群體）、服裝、動作、環境、光線、色彩、構圖、背景、道具、氛圍、細節等所有視覺層面"}},
+    {{"text": "第六段文字（可選，根據故事需要，必須包含 5-8 句，詳細描述場景、動作、情感和細節）", "scene": "場景描述（必須詳細，包含環境、光線、氛圍等）", "emotion": "這段的情感", "action": "此段中人物正在做什麼（必須詳細描述動作和姿態）", "image_prompt": "必須包含至少 40-60 個詳細關鍵字，涵蓋角色（單人或多人/群體）、服裝、動作、環境、光線、色彩、構圖、背景、道具、氛圍、細節等所有視覺層面"}},
+    {{"text": "第七段文字（可選，根據故事需要，必須包含 5-8 句，詳細描述場景、動作、情感和細節）", "scene": "場景描述（必須詳細，包含環境、光線、氛圍等）", "emotion": "這段的情感", "action": "此段中人物正在做什麼（必須詳細描述動作和姿態）", "image_prompt": "必須包含至少 40-60 個詳細關鍵字，涵蓋角色（單人或多人/群體）、服裝、動作、環境、光線、色彩、構圖、背景、道具、氛圍、細節等所有視覺層面"}},
+    {{"text": "第八段文字（可選，根據故事需要，必須包含 5-8 句，詳細描述場景、動作、情感和細節）", "scene": "場景描述（必須詳細，包含環境、光線、氛圍等）", "emotion": "這段的情感", "action": "此段中人物正在做什麼（必須詳細描述動作和姿態）", "image_prompt": "必須包含至少 40-60 個詳細關鍵字，涵蓋角色（單人或多人/群體）、服裝、動作、環境、光線、色彩、構圖、背景、道具、氛圍、細節等所有視覺層面"}}
   ]
   
 注意：paragraphs 陣列必須包含 5-8 個段落。LLM 根據故事複雜度和需要決定具體數量，但最少 5 段，最多 8 段。
+
+【文字長度要求 - 非常重要】每段 text 字段必須包含 5-8 句，詳細描述場景、動作、情感和細節。不能只是簡單的一兩句話。必須包含：
+- 環境描述（地點、建築、物品、佈置等）
+- 人物動作和姿態的詳細描述（如何移動、站立、坐姿等）
+- 情感和表情的變化（眼神、面部表情、身體語言等）
+- 光線和氛圍的描寫（光線來源、明暗對比、環境氛圍等）
+- 情節發展的細節（發生了什麼、如何發生、結果如何等）
+每段文字應該是一個完整的場景描述，讓讀者能夠清楚地想像出整個畫面。每段至少 35-80 字（根據段落總數調整），包含豐富的細節描述。
 }}
 
 image_prompt 規則（每段必填，全部英文；由你根據該段故事與場景決定內容，要極度詳細）：
@@ -141,7 +150,7 @@ image_prompt 規則（每段必填，全部英文；由你根據該段故事與�
 
 【重要】paragraphs 陣列必須包含 5-8 個段落（最少 5 段，最多 8 段）。LLM 根據故事複雜度和完整度決定具體數量，但必須在此範圍內。
 
-【視頻時長要求】所有段落加起來的總語音時長必須在 20-60 秒之間（中文 TTS 約 2.5-4 字/秒）。每段文字長度根據段落總數調整：如果段落較少（5-6段），每段可以更長（4-6句，30-50字）；如果段落較多（7-8段），每段可以稍短（3-4句，18-35字），以確保總時長在 20-60 秒範圍內。每段可以比基本要求更長一些，但必須確保總時長不超過 60 秒。
+【視頻時長要求】所有段落加起來的總語音時長必須在 20-60 秒之間（中文 TTS 約 2.5-4 字/秒，建議控制在 40-60 秒之間）。每段必須包含 5-8 句，詳細描述場景、動作、情感和細節，不能只是簡單的一兩句話。每段文字長度根據段落總數調整：如果段落較少（5-6段），每段約 50-80 字（5-8句）；如果段落較多（7-8段），每段約 35-60 字（5-7句），以確保總時長在 20-60 秒範圍內。每段必須是完整的場景描述，包含豐富的細節和情節發展。
 
 只輸出 JSON，確保完整閉合所有括號。故事必須與「{keyword}」相關。"""
 
@@ -169,13 +178,48 @@ image_prompt 規則（每段必填，全部英文；由你根據該段故事與�
             result = response.json()
             response_text = result.get("response", "")
             
+            # 檢查回應是否為空
+            if not response_text or len(response_text.strip()) == 0:
+                raise ValueError("Ollama 返回空回應，請檢查模型是否正常運行")
+            
             # 嘗試提取 JSON
+            print(f"📝 原始回應長度: {len(response_text)} 字符")
+            if len(response_text) < 100:
+                print(f"⚠️  警告：回應過短，可能不完整")
+                print(f"📄 完整回應: {response_text}")
+            else:
+                # 顯示回應的前後部分以便調試
+                print(f"📄 回應前 300 字符: {response_text[:300]}...")
+                if len(response_text) > 600:
+                    print(f"📄 回應後 300 字符: ...{response_text[-300:]}")
+            
             json_text = self._extract_json(response_text)
-            script_data = json.loads(json_text)
+            print(f"📝 提取的 JSON 長度: {len(json_text)} 字符")
+            
+            try:
+                script_data = json.loads(json_text)
+            except json.JSONDecodeError as e:
+                print(f"❌ JSON 解析失敗: {e}")
+                print(f"📄 提取的 JSON 前 1000 字符: {json_text[:1000]}")
+                if len(json_text) > 1000:
+                    print(f"📄 提取的 JSON 後 500 字符: ...{json_text[-500:]}")
+                raise
             
             # 驗證數據結構
-            if "paragraphs" not in script_data or not isinstance(script_data["paragraphs"], list):
-                raise ValueError("生成的劇本格式不正確")
+            if "paragraphs" not in script_data:
+                print(f"❌ 錯誤：生成的劇本缺少 'paragraphs' 字段")
+                print(f"📋 實際包含的字段: {list(script_data.keys())}")
+                print(f"📄 完整數據: {json.dumps(script_data, ensure_ascii=False, indent=2)[:1000]}")
+                raise ValueError("生成的劇本格式不正確：缺少 'paragraphs' 字段")
+            
+            if not isinstance(script_data["paragraphs"], list):
+                print(f"❌ 錯誤：'paragraphs' 不是列表類型，實際類型: {type(script_data['paragraphs'])}")
+                print(f"📄 paragraphs 內容: {script_data['paragraphs']}")
+                raise ValueError(f"生成的劇本格式不正確：'paragraphs' 應該是列表，但實際是 {type(script_data['paragraphs'])}")
+            
+            if len(script_data["paragraphs"]) == 0:
+                print(f"❌ 錯誤：'paragraphs' 列表為空")
+                raise ValueError("生成的劇本格式不正確：'paragraphs' 列表為空")
             
             # 驗證段落數量（必須 5-8 段）
             paragraph_count = len(script_data["paragraphs"])
@@ -237,6 +281,8 @@ image_prompt 規則（每段必填，全部英文；由你根據該段故事與�
         # 尋找 JSON 開始
         start_idx = text.find("{")
         if start_idx == -1:
+            print(f"❌ 無法在回應中找到 JSON 開始標記 '{{'")
+            print(f"📄 回應前 500 字符: {text[:500]}")
             raise ValueError("無法在回應中找到 JSON 開始標記")
         
         # 尋找 JSON 結束（從後往前找最後一個 }）
