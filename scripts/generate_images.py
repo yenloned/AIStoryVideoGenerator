@@ -373,11 +373,13 @@ class ImageGenerator:
             self.load_model()
             
         # LLM 提供的關鍵字串（tag 風格）優先作為主 prompt
+        # 注意：關鍵字順序很重要，前面的關鍵字權重更高
         keyword_prompt = (image_prompt or "").strip()
         if keyword_prompt and any(c in keyword_prompt for c in "abcdefghijklmnopqrstuvwxyz"):
             # 若有中文則翻譯成英文
             if any("\u4e00" <= c <= "\u9fff" for c in keyword_prompt):
                 keyword_prompt = self.translate_to_english(keyword_prompt)
+            # 保留原始順序（前面的關鍵字權重更高），只清理空白
             keyword_prompt = ", ".join(t.strip() for t in keyword_prompt.split(",") if t.strip())
             
         # 翻譯場景描述（無 keyword_prompt 時或作為 fallback 用）
@@ -415,21 +417,41 @@ class ImageGenerator:
         
         if keyword_prompt:
             # 使用 LLM 輸出的關鍵字串作為主體 prompt（tag 風格，多關鍵字）
-            prompt_parts = ["masterpiece, best quality", keyword_prompt, style_suffix]
+            # 關鍵字順序已由 LLM 決定（前面的權重更高），直接使用
+            # 不強制添加角色（LLM 已決定是否包含角色）
+            prompt_parts = ["masterpiece, best quality", keyword_prompt]
+            # 只在必要時添加情感上下文（如果 LLM 的 prompt 中沒有明顯情感標記）
+            if emotional_context and not any(emotion_word in keyword_prompt.lower() for emotion_word in ["joyful", "melancholic", "calm", "happy", "sad", "focused", "determined", "eager"]):
+                # 如果 LLM prompt 中沒有情感相關關鍵字，才添加
+                prompt_parts.append(emotional_context)
+            prompt_parts.append(style_suffix)
             prompt = ", ".join(prompt_parts)
-            print(f"📝 使用 LLM 關鍵字 prompt（{len(keyword_prompt.split(','))} tags）")
+            tag_count = len([t.strip() for t in keyword_prompt.split(",") if t.strip()])
+            print(f"📝 使用 LLM 關鍵字 prompt（{tag_count} tags，順序已保留）")
         else:
-            # Fallback：從角色、情感、動作、場景組句
-            character_subject = self._build_character_prompt(character) if character else ""
-            if character_subject and not self.base_character_prompt and story_title:
-                self.base_character_prompt = character_subject
-            if not self.base_character_prompt and story_title:
-                self.base_character_prompt = "consistent character"
+            # Fallback：從角色、情感、動作、場景組句（當 LLM 沒有提供 image_prompt 時）
+            # 注意：角色不一定需要存在，根據場景描述判斷
+            character_subject = ""
+            # 只在場景描述或文本中明確提到角色時才添加
+            if character:
+                # 檢查場景描述或文本中是否提到角色相關內容
+                scene_lower = (scene_description + " " + (story_text or "")).lower()
+                has_character_mention = any(
+                    word in scene_lower for word in 
+                    ["人", "角色", "主角", "他", "她", "person", "character", "man", "woman", "boy", "girl", "people"]
+                )
+                if has_character_mention:
+                    character_subject = self._build_character_prompt(character)
+                    if character_subject and not self.base_character_prompt and story_title:
+                        self.base_character_prompt = character_subject
+                    if not self.base_character_prompt and story_title:
+                        self.base_character_prompt = "consistent character"
             
             action_english = ""
             if action and str(action).strip():
                 action_english = self.translate_to_english(str(action).strip())
             
+            # 按重要性排序：品質標籤 → 角色（如果存在）→ 情感 → 動作 → 場景 → 風格
             prompt_parts = ["masterpiece, best quality"]
             if character_subject:
                 prompt_parts.append(f"({character_subject}:1.2)")

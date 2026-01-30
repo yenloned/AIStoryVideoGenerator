@@ -242,16 +242,29 @@ class VideoGenerator:
         # 檢查是否有缺失的音頻文件
         print(f"📊 檢查文件匹配: {len(image_paths)} 張圖片, {len(audio_paths)} 個音頻")
         
-        # 確保所有音頻文件都存在
+        # 確保所有音頻和圖片文件都存在且匹配
         valid_audio_paths = []
         valid_image_paths = []
         for i, audio_path in enumerate(audio_paths):
-            if os.path.exists(audio_path):
-                valid_audio_paths.append(audio_path)
-                if i < len(image_paths):
-                    valid_image_paths.append(image_paths[i])
-            else:
+            # 檢查音頻文件是否存在
+            if not os.path.exists(audio_path):
                 print(f"⚠️  音頻文件不存在: {audio_path}")
+                continue
+            
+            # 檢查是否有對應的圖片
+            if i >= len(image_paths) or image_paths[i] is None:
+                print(f"⚠️  缺少對應的圖片（索引 {i}）")
+                continue
+            
+            img_path = image_paths[i]
+            # 檢查圖片文件是否存在
+            if not os.path.exists(img_path):
+                print(f"⚠️  圖片文件不存在: {img_path}")
+                continue
+            
+            # 只有當音頻和圖片都存在時才添加
+            valid_audio_paths.append(audio_path)
+            valid_image_paths.append(img_path)
         
         min_count = min(len(valid_image_paths), len(valid_audio_paths))
         if min_count == 0:
@@ -267,9 +280,24 @@ class VideoGenerator:
             image_path = valid_image_paths[i]
             audio_path = valid_audio_paths[i]
             
+            # 驗證圖片路徑有效
+            if image_path is None:
+                print(f"⚠️  圖片路徑為 None（索引 {i}）")
+                continue
+            
+            # 驗證音頻路徑有效
+            if audio_path is None:
+                print(f"⚠️  音頻路徑為 None（索引 {i}）")
+                continue
+            
             # 驗證圖片文件存在
             if not os.path.exists(image_path):
                 print(f"⚠️  圖片文件不存在: {image_path}")
+                continue
+            
+            # 驗證音頻文件存在
+            if not os.path.exists(audio_path):
+                print(f"⚠️  音頻文件不存在: {audio_path}")
                 continue
             
             # 獲取實際音頻時長（確保精確匹配）
